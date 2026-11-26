@@ -298,7 +298,7 @@ export default async function handler(req, res) {
         if (hitExact(18 * 60) && allowed('adhkar')) {
           await send({ title: '🌇 Evening Adhkar', body: 'Take a moment to remember Allah before the day ends.' }, `evening-adhkar-${today}`);
         }
-       if (hitExact(18 * 60 + 29) && allowed('quran')) {
+       if (hitExact(20 * 60) && allowed('quran')) {
           await send({ title: '📖 Qur\'an Reminder', body: 'A moment with the Qur\'an brings peace.' }, `quran-${today}`);
         }
         if (hitExact(9 * 60) && settings.birthday && allowed('birthday')) {
