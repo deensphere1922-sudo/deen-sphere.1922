@@ -5174,7 +5174,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
             if (!a) return;
             clearTimeout(a.__verseTimer);
             a.__verseTimer = null;
-            if (a.__clipVerse || _qAudio !== a || a.paused || a.seeking || !_isPlayingFullSurah || _currentSurahNum !== surahNum) return;
+            if (_qAudio !== a || a.paused || a.seeking || !_isPlayingFullSurah || _currentSurahNum !== surahNum) return;
             const timings = _verseTimingsCache[surahNum];
             if (!timings?.length) return;
             const cur = a.currentTime || 0;
@@ -5190,7 +5190,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
           }
 
           function _applyVerseHighlight(surahNum, verseNow) {
-            if (S.screen === 'quran-reader' && Number(S.arg) === Number(surahNum)) {
+            if (S.screen === 'quran-reader' && S.arg === surahNum) {
               let activeVerseEl = null;
               document.querySelectorAll('.card[data-verse-num]').forEach(card => {
                 const cardVerse = parseInt(card.dataset.verseNum, 10);
@@ -5207,7 +5207,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
                 activeVerseEl.dataset.scrolledFor = String(verseNow);
                 _autoScrolling = true;
                 requestAnimationFrame(() => {
-                  if (!activeVerseEl.isConnected || S.screen !== 'quran-reader' || Number(S.arg) !== Number(surahNum) || !activeVerseEl.classList.contains('verse-playing')) {
+                  if (!activeVerseEl.isConnected || S.screen !== 'quran-reader' || S.arg !== surahNum || !activeVerseEl.classList.contains('verse-playing')) {
                     _autoScrolling = false;
                     return;
                   }
@@ -5215,7 +5215,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
                   const topbar = document.querySelector('.topbar');
                   const stickyBottom = Math.max(0, header?.getBoundingClientRect().bottom || 0, topbar?.getBoundingClientRect().bottom || 0);
                   activeVerseEl.style.scrollMarginTop = `${stickyBottom + 16}px`;
-                  activeVerseEl.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'instant' });
+                  activeVerseEl.scrollIntoView({ block: 'start', inline: 'nearest', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
                   clearTimeout(window.__autoScrollTimer);
                   window.__autoScrollTimer = setTimeout(() => { _autoScrolling = false; }, 1000);
                 });
@@ -5235,7 +5235,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
               }
               const now = Date.now();
               _lastQuranSaveAt = now;
-              _lastPlaybackPos = { surahNum, verse: verseNow, seconds: Math.max(0, _qAudio?.currentTime || 0), clientUpdatedAt: now, audioSource: _qAudio?.__clipVerse ? 'yasser-verse-clip' : 'kalamalah-yasser-murattal' };
+              _lastPlaybackPos = { surahNum, verse: verseNow, seconds: Math.max(0, _qAudio?.currentTime || 0), clientUpdatedAt: now, audioSource: 'kalamalah-yasser-murattal' };
               setJSON('quran-progress', { surah: surahNum, verse: verseNow, clientUpdatedAt: now }).catch(() => {});
               setJSON('audio-position', _lastPlaybackPos).catch(() => {});
             }
@@ -5282,13 +5282,13 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
 
             const cur = _qAudio.currentTime || 0;
             const dur = _qAudio.duration && isFinite(_qAudio.duration) ? _qAudio.duration : 0;
-            const v = _qAudio.__clipVerse ? (_qAudio.__clipStarted ? _qAudio.__clipVerse : null) : _estimateVerseFromTime(_currentSurahNum, cur, dur);
+            const v = _estimateVerseFromTime(_currentSurahNum, cur, dur);
             if (!v) return;
 
             _fullSurahPointerFrozen = true;
             _fullSurahOwnsPointer = true;
             _lockedSurahNum = _currentSurahNum;
-            _lastPlaybackPos = { surahNum: _currentSurahNum, verse: v, seconds: cur, audioSource: _qAudio?.__clipVerse ? 'yasser-verse-clip' : 'kalamalah-yasser-murattal' };
+            _lastPlaybackPos = { surahNum: _currentSurahNum, verse: v, seconds: cur, audioSource: 'kalamalah-yasser-murattal' };
             S.quranProgress = { surah: _currentSurahNum, verse: v };
 
             setJSON('audio-position', _lastPlaybackPos).catch(() => { });
@@ -5303,7 +5303,6 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
           }
 
               function _qStopAudio(finalizePointer = true) {
-            ++_surahSyncRequest;
             if (_qAudio && _isPlayingFullSurah && _currentSurahNum && finalizePointer && !_fullSurahPointerFrozen) {
               _freezeFullSurahPointer();
             }
@@ -5345,7 +5344,6 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
   _autoPlayNextSurah = false;
   _isPlayingFullSurah = false;
   _currentSurahNum = null;
-  document.querySelectorAll('.card[data-verse-num].verse-playing').forEach(card => { card.classList.remove('verse-playing'); delete card.dataset.scrolledFor; });
 
             _isSeeking = false;
             _abSetPlaying(false);
@@ -5411,16 +5409,14 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
               // NOT by timeupdate. Here we only repaint the current verse so a fresh
               // play or a seek shows the correct verse immediately.
               if (_isPlayingFullSurah && _currentSurahNum && dur > 0) {
-                const verseNow = a.__clipVerse ? (a.__clipStarted ? a.__clipVerse : null) : _estimateVerseFromTime(_currentSurahNum, cur, dur);
+                const verseNow = _estimateVerseFromTime(_currentSurahNum, cur, dur);
                 if (verseNow) _applyVerseHighlight(_currentSurahNum, verseNow);
               }
             };
-            let verseFrame = null;
             const tick = () => {
-              verseFrame = null;
-              if (_qAudio !== a || a.paused) return;
+              if (_qAudio !== a) return;
               updateUI();
-              verseFrame = requestAnimationFrame(tick);
+              if (!a.paused) requestAnimationFrame(tick);
             };
 
             a.addEventListener('loadedmetadata', () => {
@@ -5435,7 +5431,6 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
             a.addEventListener('timeupdate', updateUI);
 
                     a.addEventListener('play', () => {
-              if (_qAudio !== a) return;
               try { a.playbackRate = _playbackRate; } catch (e) { }
               if (_isPlayingFullSurah && _qAudio === a) {
                 _fullSurahPointerFrozen = false;
@@ -5444,7 +5439,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
               if (_qAudioBtn) _qAudioBtn.innerHTML = _qPlayBtnHTML(true);
               _abSyncStatus(true);
               _syncMiniPillLabel();
-              if (verseFrame === null) verseFrame = requestAnimationFrame(tick);
+              requestAnimationFrame(tick);
               // Arm the precise verse-boundary scheduler.
               if (_isPlayingFullSurah && _currentSurahNum) {
                 _scheduleVerseHighlight(a, _currentSurahNum);
@@ -5452,11 +5447,10 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
             });
 
             a.addEventListener('seeking', () => {
-              if (_qAudio !== a) return;
               if (_isPlayingFullSurah && _currentSurahNum) {
                 const dur = a.duration && isFinite(a.duration) ? a.duration : 0;
                 if (dur > 0) {
-                  const v = a.__clipVerse ? (a.__clipStarted ? a.__clipVerse : null) : _estimateVerseFromTime(_currentSurahNum, a.currentTime || 0, dur);
+                  const v = _estimateVerseFromTime(_currentSurahNum, a.currentTime || 0, dur);
                   if (v) _applyVerseHighlight(_currentSurahNum, v);
                 }
                 _scheduleVerseHighlight(a, _currentSurahNum);
@@ -5464,16 +5458,12 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
             });
 
             a.addEventListener('seeked', () => {
-              if (_qAudio !== a) return;
-              updateUI();
               if (_isPlayingFullSurah && _currentSurahNum) {
                 _scheduleVerseHighlight(a, _currentSurahNum);
               }
             });
 
                     a.addEventListener('pause', () => {
-              if (verseFrame !== null) { cancelAnimationFrame(verseFrame); verseFrame = null; }
-              if (_qAudio !== a) return;
               // Kill the pending verse-transition timer — nothing should fire
               // while the player is paused.
               clearTimeout(a.__verseTimer);
@@ -5489,14 +5479,10 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
             });
 
             a.addEventListener('ended', () => {
-              if (verseFrame !== null) { cancelAnimationFrame(verseFrame); verseFrame = null; }
-              if (_qAudio !== a) return;
-              if (!a.__clipVerse) {
-                _abSetPlaying(false);
-                _abSetProgressUI(0, 0, 0);
-                _hideMiniPill();
-                _abHide();
-              }
+              _abSetPlaying(false);
+              _abSetProgressUI(0, 0, 0);
+              _hideMiniPill();
+              _abHide();
               if (onEnded) onEnded();
             });
           }
@@ -5592,14 +5578,8 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
             window.addEventListener('touchend', (e) => { if (usingTouch) endTouch(e); }, { passive: false });
           }
 
-          let _surahSyncRequest = 0;
-          async function _playSurahAudio(num, autoNext) {
+          function _playSurahAudio(num, autoNext) {
             _qStopAudio();
-            const requestId = ++_surahSyncRequest;
-            const meta = SURAHS.find(x => x.num === num);
-            if (!meta) return;
-            const saved = _lastPlaybackPos?.surahNum === num ? _lastPlaybackPos : null;
-            const first = Math.max(1, Math.min(meta.verses, Number(saved?.verse) || 1));
             _fullSurahOwnsPointer = true;
             _fullSurahPointerFrozen = false;
             _lockedSurahNum = num;
@@ -5607,73 +5587,202 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
             _currentSurahNum = num;
             _isPlayingFullSurah = true;
 
-            const clipUrl = verse => `https://github.com/quran-by-verses/yaser-aldosry-128/raw/refs/heads/main/verses/${String(num).padStart(3,'0')}${String(verse).padStart(3,'0')}.mp3`;
-            let preloaded = null;
-            const valid = () => requestId === _surahSyncRequest && _isPlayingFullSurah && _currentSurahNum === num;
-            const playClip = (verse, seconds = 0) => {
-              if (!valid()) return;
-              const a = preloaded?.__clipVerse === verse ? preloaded : new Audio();
-              preloaded = null;
-              a.__clipVerse = verse;
-              a.__clipStarted = false;
-              a.preload = 'auto';
-              if (!a.src) a.src = clipUrl(verse);
-              _qAudio = a;
-              _qAudioBtn = null;
-              _fullSurahPointerFrozen = false;
-              _abShow(meta.translit + ' (' + num + ') — Full Surah', 'Yasser Al-Dosari — Verse ' + verse);
-              _abSetSub('Yasser Al-Dosari — Verse ' + verse);
-              const buttons = () => {
-                if (!valid() || _qAudio !== a) return;
-                for (const id of ['play-whole-surah','play-whole-surah-mobile']) {
-                  const btn = document.getElementById(id);
-                  if (btn) btn.innerHTML = _qPlayBtnHTML(!a.paused);
-                }
-              };
-              a.addEventListener('playing', () => {
-                if (!valid() || _qAudio !== a || a.paused) return;
-                a.__clipStarted = true;
-                _applyVerseHighlight(num, verse);
-                buttons();
-                if (verse < meta.verses && !preloaded) {
-                  preloaded = new Audio();
-                  preloaded.__clipVerse = verse + 1;
-                  preloaded.preload = 'auto';
-                  preloaded.src = clipUrl(verse + 1);
-                }
-              });
-              a.addEventListener('pause', buttons);
-              _attachAudio(a, () => {
-                if (!valid() || _qAudio !== a) return;
-                if (verse < meta.verses) {
-                  playClip(verse + 1);
-                } else {
-                  const next = _autoPlayNextSurah && num < 114;
-                  _qStopAudio(false);
-                  if (next) {
-                    if (S.screen === 'quran-reader' && Number(S.arg) === num) go('quran-reader', num + 1);
+            const meta = SURAHS.find(x => x.num === num);
+            const url = `https://api.kalamalah.com/api/yasser-al-dossari/murattal/${String(num).padStart(3, '0')}`;
+
+            const a = new Audio();
+            a.preload = 'auto';
+            a.src = url;
+            try { a.playbackRate = _playbackRate; } catch (e) { }
+            _qAudio = a;
+
+            const savedPos = (_lastPlaybackPos && _lastPlaybackPos.surahNum === num)
+              ? _lastPlaybackPos
+              : null;
+
+          
+  // Update verse information without changing the saved audio position.
+  _fetchVerseTimings(num).then((timings) => {
+    if (_qAudio !== a || !timings || !timings.length) return;
+
+    const dur = a.duration && isFinite(a.duration) ? a.duration : 0;
+    if (dur <= 0) return;
+
+    const v = _estimateVerseFromTime(num, a.currentTime || 0, dur);
+
+    if (v) {
+      _abSetSub('Yasser Al-Dosari — Verse ' + v);
+      _applyVerseHighlight(num, v);
+
+      if (!a.paused && _isPlayingFullSurah) {
+        _scheduleVerseHighlight(a, num);
+      }
+    }
+  });
+
+  a.addEventListener('loadedmetadata', () => {
+    if (_qAudio !== a) return;
+
+    if (_isPlayingFullSurah && _currentSurahNum === num) {
+      _scheduleVerseHighlight(a, num);
+    }
+  }, { once: true });
+
+
+          
+  const wholeBtn = document.querySelector('#play-whole-surah');
+  const mobileBtn = document.querySelector('#play-whole-surah-mobile');
+
+  const playSurahHTML =
+    `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Play Surah`;
+
+  const pauseSurahHTML =
+    `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg> Pause Surah`;
+
+  const updateSurahButtons = () => {
+    const isPlaying =
+      _qAudio === a &&
+      _isPlayingFullSurah &&
+      !a.paused;
+
+    const label = isPlaying ? pauseSurahHTML : playSurahHTML;
+
+    if (wholeBtn) wholeBtn.innerHTML = label;
+    if (mobileBtn) mobileBtn.innerHTML = label;
+  };
+
+  if (wholeBtn) {
+    _qAudioBtn = wholeBtn;
+  }
+
+  updateSurahButtons();
+
+  a.addEventListener('play', updateSurahButtons);
+  a.addEventListener('playing', updateSurahButtons);
+  a.addEventListener('pause', updateSurahButtons);
+  a.addEventListener('ended', updateSurahButtons);
+
+
+        _abShow(meta.translit + ' (' + num + ') \u2014 Full Surah', 'Yasser Al-Dosari');
+
+            _attachAudio(a, () => {
+              if (wholeBtn) wholeBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Play Surah`;
+              _qAudio = null; _qAudioBtn = null;
+
+              if (_autoPlayNextSurah && num < 114) {
+                if (S.screen === 'quran-reader' && S.arg === num) {
+                  go('quran-reader', num + 1);
+                  setTimeout(() => {
                     _playSurahAudio(num + 1, true);
-                  }
+                  }, 300);
+                } else {
+                  _playSurahAudio(num + 1, true);
                 }
-              });
-              a.addEventListener('error', () => {
-                if (!valid() || _qAudio !== a) return;
-                _qStopAudio(false);
-                toast('Verse audio unavailable. Please retry.');
-              });
-              const begin = () => {
-                if (!valid() || _qAudio !== a) return;
-                if (seconds > 0 && Number.isFinite(a.duration)) {
-                  a.currentTime = Math.min(seconds, Math.max(0, a.duration - 0.1));
-                }
-                a.play().catch(() => {
-                  if (valid() && _qAudio === a) toast('Tap Play Surah to resume.');
-                });
-              };
-              if (seconds > 0 && a.readyState < 1) a.addEventListener('loadedmetadata', begin, {once:true});
-              else begin();
+              } else {
+                _autoPlayNextSurah = false;
+                _abHide();
+              }
+            });
+
+          // Restore the exact saved timestamp BEFORE allowing playback.
+  let resumeStarted = false;
+
+  const startSurahFromSavedPosition = async () => {
+    if (resumeStarted || _qAudio !== a) return;
+
+    if (a.readyState < HTMLMediaElement.HAVE_METADATA) return;
+
+    resumeStarted = true;
+
+    try {
+      const timings = await _fetchVerseTimings(num);
+      if (_qAudio !== a) return;
+      const savedSeconds = savedPos?.audioSource === 'kalamalah-yasser-murattal' && Number.isFinite(Number(savedPos.seconds))
+        ? Math.max(0, Number(savedPos.seconds))
+        : (timings?.find(t => t.verse === Number(savedPos?.verse))?.start || 0);
+
+      // Use the exact saved timestamp, not the beginning of the verse.
+      const targetTime = Math.min(
+        savedSeconds,
+        Math.max(0, (a.duration || 0) - 0.25)
+      );
+
+      if (targetTime > 0) {
+        a.currentTime = targetTime;
+
+        // Wait until the browser finishes seeking.
+        if (a.seeking) {
+          await new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+              cleanup();
+              reject(new Error('Audio seek timed out'));
+            }, 8000);
+
+            const cleanup = () => {
+              clearTimeout(timeout);
+              a.removeEventListener('seeked', onSeeked);
+              a.removeEventListener('error', onError);
             };
-            playClip(first, saved?.audioSource === 'yasser-verse-clip' ? Math.max(0, Number(saved.seconds) || 0) : 0);
+
+            const onSeeked = () => {
+              cleanup();
+              resolve();
+            };
+
+            const onError = () => {
+              cleanup();
+              reject(new Error('Audio seek failed'));
+            };
+
+            a.addEventListener('seeked', onSeeked, { once: true });
+            a.addEventListener('error', onError, { once: true });
+          });
+        }
+      }
+
+      // Do not start if another audio action replaced this player.
+      if (_qAudio !== a) return;
+
+      const dur = a.duration && isFinite(a.duration) ? a.duration : 0;
+      const currentVerse = dur
+        ? _estimateVerseFromTime(num, a.currentTime, dur)
+        : savedPos?.verse;
+
+      if (currentVerse) {
+        _abSetSub('Yasser Al-Dosari — Verse ' + currentVerse);
+        _applyVerseHighlight(num, currentVerse);
+      }
+
+      await a.play();
+
+      if (_qAudio === a) {
+        _abSyncStatus(true);
+
+        if (wholeBtn) {
+          wholeBtn.innerHTML =
+            `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg> Pause Surah`;
+        }
+      }
+    } catch (err) {
+      console.warn('Surah resume failed:', err);
+      resumeStarted = false;
+
+      if (_qAudio === a) {
+        toast('Unable to resume. Tap Play Surah to retry.');
+      }
+    }
+  };
+
+  a.addEventListener('canplay', startSurahFromSavedPosition);
+  a.addEventListener('loadedmetadata', startSurahFromSavedPosition);
+
+            a.addEventListener('error', () => {
+              console.error('Surah error:', url);
+              if (wholeBtn) wholeBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Play Surah`;
+              _qAudio = null; _qAudioBtn = null;
+              _abHide();
+              toast('Surah audio unavailable.');
+            });
           }
 
           const _verseTimingsCache = {};
@@ -5695,20 +5804,11 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
                 return null;
               }
 
-              const info = json.metadata?.recitation_info;
-              const audioUrl = new URL(info?.audio_url || '');
-              if (audioUrl.protocol !== 'https:' || Number(info?.surah) !== Number(surahNum)) return null;
               const timings = json.recitation_timings.map(entry => {
-                const verseStart = Number(entry?.timestamps?.start_ms ?? NaN);
-                // Word 1 onset is closer to the spoken start than the enclosing verse interval.
-                const firstWord = Array.isArray(entry.audio_segments)
-                  ? entry.audio_segments.filter(seg => Array.isArray(seg) && Number(seg[0]) === 1 && Number.isFinite(Number(seg[1]))).map(seg => Number(seg[1])).sort((a,b)=>a-b)[0]
-                  : undefined;
-                const end = Number(entry?.timestamps?.end_ms ?? NaN);
-                const startMs = Number.isFinite(firstWord) && firstWord >= verseStart && firstWord < end ? firstWord : verseStart;
+                const startMs = parseFloat(entry?.timestamps?.start_ms ?? 0);
                 const endMs = parseFloat(entry?.timestamps?.end_ms ?? 0);
                 const vKey = String(entry.verse || '');
-                const verseNum = Number(vKey.split(':')[0]) === Number(surahNum) ? parseInt(vKey.split(':')[1] || '0', 10) || 0 : 0;
+                const verseNum = parseInt(vKey.split(':')[1] || '0', 10) || 0;
                 return {
                   verse: verseNum,
                   start: startMs / 1000,
@@ -5721,8 +5821,6 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
                 console.warn('Incomplete or invalid verse timings', surahNum);
                 return null;
               }
-              timings.audioUrl = audioUrl.href;
-              timings.duration = Number(info.total_duration_milliseconds) / 1000;
               _verseTimingsCache[surahNum] = timings;
               return timings;
             } catch (e) {
@@ -5735,17 +5833,33 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
           }
 
           function _estimateVerseFromTime(surahNum, currentTime, duration) {
+            if (!duration || !isFinite(duration) || duration <= 0) return null;
+            const meta = SURAHS.find(x => x.num === surahNum);
+            if (!meta) return null;
             const timings = _verseTimingsCache[surahNum];
-            if (!timings?.length || !Number.isFinite(currentTime) || !Number.isFinite(duration) || duration <= 0) return null;
-            if (Number.isFinite(timings.duration) && timings.duration > 0 && Math.abs(duration - timings.duration) > 2) return null;
-            // Latest spoken start wins even when the preceding verse's end overlaps.
-            let lo = 0, hi = timings.length - 1, found = 0;
-            while (lo <= hi) {
-              const mid = (lo + hi) >>> 1;
-              if (timings[mid].start <= currentTime) { found = mid; lo = mid + 1; }
-              else hi = mid - 1;
+            if (timings && timings.length) {
+              for (let i = 0; i < timings.length; i++) {
+                if (
+                  currentTime >= timings[i].start &&
+                  currentTime < timings[i].end
+                ) {
+                  return timings[i].verse;
+                }
+              }
+              let previousVerse = null;
+              for (let i = 0; i < timings.length; i++) {
+                if (currentTime >= timings[i].start) {
+                  previousVerse = timings[i].verse;
+                } else {
+                  break;
+                }
+              }
+              if (previousVerse !== null) {
+                return previousVerse;
+              }
+              return timings[0].verse || 1;
             }
-            return timings[found].verse;
+            return null;
           }
 
           function _tryPlayVerse(btnEl, primaryUrl, reciterName, fallbackUrl) {
@@ -5874,9 +5988,6 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
                 if (fullSurahWasActive) {
                   if (_qAudio) { try { _qAudio.pause(); } catch (e) { } }
                   _qAudioBtn = null;
-                  _isPlayingFullSurah = false;
-                  _autoPlayNextSurah = false;
-                  _currentSurahNum = null;
                 } else {
                   _qStopAudio(false);
                 }
