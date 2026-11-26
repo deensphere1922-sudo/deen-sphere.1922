@@ -96,7 +96,11 @@ const DEEN_GUIDE_MANDATORY_SCOPE = [
 
 "Avoid unnecessary tables, excessive headings, decorative symbols and horizontal separators.",
 
-"Use tables only when the user explicitly requests a table or structured comparison.",
+"Use well-structured Markdown tables whenever they improve clarity and understanding.",
+
+"Use clear Markdown headings, meaningful paragraphs, bold text and proper spacing.",
+
+"Prioritize factual accuracy over answer length and presentation.",
 
 "Never include website URLs, hyperlinks or Markdown links unless the user explicitly requests them.",
 
@@ -628,7 +632,7 @@ const researchContext = researchSources.map((source, index) =>
     id: index + 1,
     title: String(source.title || '').slice(0, 250),
     url: source.url,
-    content: source.content.slice(0, 5000)
+  content: source.content.slice(0, 12000)
   })
 ).join('\n');
 
