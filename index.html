@@ -5226,7 +5226,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
                   const topbar = document.querySelector('.topbar');
                   const stickyBottom = Math.max(0, header?.getBoundingClientRect().bottom || 0, topbar?.getBoundingClientRect().bottom || 0);
                   activeVerseEl.style.scrollMarginTop = `${stickyBottom + 16}px`;
-                  activeVerseEl.scrollIntoView({ block: 'start', inline: 'nearest', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+                  activeVerseEl.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'instant' });
                   clearTimeout(window.__autoScrollTimer);
                   window.__autoScrollTimer = setTimeout(() => { _autoScrolling = false; }, 1000);
                 })();
