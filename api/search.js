@@ -11,18 +11,19 @@
     {
       type: 'Qur’an evidence',
       domains: ['quran.com', 'quranenc.com'],
-      limit: 6,
+      limit: 4,
       query: (question) =>
         `Find Quran verses and English translations directly answering this question: ${question}. Include exact Surah and verse references.`
     },
     {
       type: 'Hadith evidence',
       domains: ['sunnah.com', 'hadeethenc.com'],
-      limit: 6,
+      limit: 4,
       query: (question) =>
         `Find relevant English Hadith directly answering this question: ${question}. Include collection, Hadith number and authenticity grade when available.`
     }
-  ];
+  , {type: 'Tafsir evidence', domains: ['quran.com'], limit: 4, query: question => `Quran.com tafsir named commentary explaining ${question} historical context and verse references` }
+];
   
   const STOP_WORDS = new Set(`a an and are as at be been but by can could did do does for from had has have how i if in into is it its may me my of on or our please should so that the their them there these they this to was we what when where which who why will with would you your islamic quran qur an hadith evidence explain meaning mean means definition define describe according tell about related relevant question directly exact topic source sources reference references verse verses ayah ayat mentioned mentions say says said talk talks give show find all`.split(/\s+/));
   
@@ -169,6 +170,13 @@
     return '';
   }
   
+function classifySource(url) {
+  const u = new URL(url);
+  if (/(^|\.)quran\.com$/.test(u.hostname) && /\/tafsirs?(?:\/|$)/i.test(u.pathname)) return 'Tafsir evidence';
+  if (/(^|\.)(sunnah\.com|hadeethenc\.com)$/.test(u.hostname)) return 'Hadith evidence';
+  return 'Qur’an evidence';
+}
+
   function isTrustedUrl(value, domains) {
     try {
       const url = new URL(value);
@@ -196,7 +204,7 @@
   
   const responses = await Promise.allSettled(
    (apiKey ? sourceGroups : []).map(async group => {
-      for (let attempt = 0; attempt < 2; attempt++) {
+      for (let attempt = 0; attempt < 1; attempt++) {
         try {
           const response = await fetch(
             'https://api.tavily.com/search',
@@ -214,12 +222,12 @@
                 include_answer: false,
                 include_raw_content: true
               }),
-              signal: AbortSignal.timeout(12000)
+              signal: AbortSignal.timeout(6500)
             }
           );
   
           if (
-            attempt === 0 &&
+            attempt < 0 &&
             [500, 502, 503, 504].includes(response.status)
           ) {
             await new Promise(resolve =>
@@ -231,7 +239,7 @@
           return response;
   
         } catch (error) {
-          if (attempt === 1) throw error;
+          throw error;
   
           await new Promise(resolve =>
             setTimeout(resolve, 1000)
@@ -276,15 +284,13 @@
           if (!result || typeof result.url !== 'string' || typeof result.content !== 'string' || !isTrustedUrl(result.url, group.domains)) continue;
           const url = new URL(result.url);
           const title = typeof result.title === 'string' && result.title.trim() ? result.title.trim().slice(0, 250) : url.hostname;
-        const content = String(
-  result.raw_content || result.content || ''
-).slice(0, 12000);
+        const content = [result.content, result.raw_content].filter(Boolean).join("\n").slice(0, 12000);
           if (group.type === 'Qur’an evidence' && !isEnglishQuranUrl(url)) continue;
           if (!looksEnglish(`${title} ${content}`)) continue;
           const providerScore = typeof result.score === 'number' ? result.score : 0;
           const relevance = calculateRelevance(topic, title, content, providerScore);
           if (relevance < MIN_RELEVANCE_SCORE) continue;
-          candidates.push({ title, url: url.href, content, sourceType: group.type, score: relevance });
+          candidates.push({ title, url: url.href, content, sourceType: classifySource(url.href), evidenceQuality: result.raw_content ? "page_excerpt" : "search_snippet", score: relevance });
         }
       }
   
@@ -316,7 +322,7 @@
               hl: 'en',
               num: 10
             }),
-            signal: AbortSignal.timeout(10000)
+            signal: AbortSignal.timeout(4500)
           }
         );
   
@@ -356,7 +362,7 @@
               title,
               url: url.href,
               content,
-              sourceType: group.type,
+              sourceType: classifySource(url.href), evidenceQuality: "search_snippet",
               score
             });
           }
@@ -396,8 +402,7 @@
         .trim();
   
       if (
-        seenUrls.has(urlKey) ||
-        (titleKey && seenTitles.has(titleKey))
+        seenUrls.has(urlKey)
       ) {
         return false;
       }
@@ -415,7 +420,10 @@
       for (const group of sourceGroups) {
         results.push(...unique.filter(source => source.sourceType === group.type).sort((a, b) => b.score - a.score).slice(0, group.limit));
       }
-    const finalResults = results
+    const buckets = sourceGroups.map(group => results.filter(s => s.sourceType === group.type));
+    const balanced = [];
+    for (let i=0;i<4;i++) for (const bucket of buckets) if (bucket[i]) balanced.push(bucket[i]);
+    const finalResults = balanced
     .slice(0, MAX_SOURCES)
     .map(({ score, ...source }) => source);
   
