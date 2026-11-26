@@ -1,0 +1,455 @@
+{
+  "rootFolder": "c:\\Users\\T0151\\Downloads\\deensphere-firebase-security-reviewed (2)",
+  "analyzedAt": "2026-11-26T06:49:46.102Z",
+  "rootStructure": [
+    {
+      "name": ".gitignore",
+      "type": "file",
+      "size": 285,
+      "lines": 22
+    },
+    {
+      "name": "api",
+      "type": "dir"
+    },
+    {
+      "name": "DeenSphereNativeApp",
+      "type": "dir"
+    },
+    {
+      "name": "Deensphere_app_icon.png",
+      "type": "file",
+      "size": 8469193,
+      "lines": 29707
+    },
+    {
+      "name": "Deensphere_og_banner.jpg",
+      "type": "file",
+      "size": 36164,
+      "lines": 270
+    },
+    {
+      "name": "firebase.json",
+      "type": "file",
+      "size": 96,
+      "lines": 6
+    },
+    {
+      "name": "firestore.indexes.json",
+      "type": "file",
+      "size": 329,
+      "lines": 19
+    },
+    {
+      "name": "firestore.rules",
+      "type": "file",
+      "size": 503,
+      "lines": 9
+    },
+    {
+      "name": "fonts",
+      "type": "dir"
+    },
+    {
+      "name": "index.html",
+      "type": "file",
+      "size": 1046003,
+      "lines": 20172
+    },
+    {
+      "name": "lib",
+      "type": "dir"
+    },
+    {
+      "name": "manifest.json",
+      "type": "file",
+      "size": 766,
+      "lines": 20
+    },
+    {
+      "name": "news-fallback.png",
+      "type": "file",
+      "size": 2088787,
+      "lines": 10114
+    },
+    {
+      "name": "package.json",
+      "type": "file",
+      "size": 106,
+      "lines": 8
+    },
+    {
+      "name": "public-config.js",
+      "type": "file",
+      "size": 414,
+      "lines": 12
+    },
+    {
+      "name": "push-service-worker.js",
+      "type": "file",
+      "size": 21624,
+      "lines": 662
+    },
+    {
+      "name": "README-NEW-DEPLOYMENT.md",
+      "type": "file",
+      "size": 10254,
+      "lines": 81
+    },
+    {
+      "name": "service-worker.js",
+      "type": "file",
+      "size": 3312,
+      "lines": 116
+    },
+    {
+      "name": "vercel.json",
+      "type": "file",
+      "size": 181,
+      "lines": 13
+    }
+  ],
+  "rootFileSnippets": {
+    "Deensphere_app_icon.png": [
+      "�PNG",
+      "\u001a",
+      "\u0000\u0000\u0000\rIHDR\u0000\u0000\u0010\u0000\u0000\u0000\u0010\u0000\b\u0006\u0000\u0000\u0000�$\u0017\u0000\u0000\u0000\tpHYs\u0000\u0000,K\u0000\u0000,K\u0001�=��\u0000\u0000\u0000\u0001sRGB\u0000��\u001c�\u0000\u0000\u0000\u0004gAMA\u0000\u0000��\u000b�a\u0005\u0000\u0000\u0000\u000etEXtSoftware\u0000Figma���c\u0000�:DIDATx\u0001�}���*�-ʬ���ߩ\f��#!\bG�<u�J�\bI�60&�����p_ ���\u000b��q4�_h܌;��X�;\u0005\u000bU.�1\r�ˈj$2�dk{8��H5\u001ci>�P����K\u0019o��,$5�aS\u0002��\u0004\u001eD�:� 2��",
+      "S�h��'\u0014�[\u0007��",
+      "c{T��\u0011Q��\"g�m D��\u0002r�.�a�\u0001I�L�\u0016\u0016̏�/X%cY,�� \u001e��\u0002q�A4|�\b�U\u0006�6}\u0010���53��^Pxc�č���T|\u001a��t(�&%�H\u0006.V�\u0014j�\u0007d��JA'���-e�\\VK�*��C\u001a����;\u000f��a2<\u0017�\u000b���$ʼ�]fW�G\rB��[5�\b\u0006m�D)*c�W�4�,�y�\u0011���V��c�tC\u001c��r��P�S+�H�]rDv��\u0012�b�#\u0002cp��z\t�$\u0017(����l��1�a���\r�p|~J",
+      "}%l8;\\OQ_]h]Wɦ�B�A?F��ς�Gd��\u0010����\u001b��F��������g�\u0017\u001f����\u001d�0\u0017ɽ10A\u0007�D���zY���Tz\u001a��l&��\u0006���AEgZ(B��z�V �\u0015�z�~j����e~�b\u0006&����$\u0015�NA!P4.�_��ZDz�N>cʩPX�]z��K0�����2�%���^��pMD�N\u0002�O\u0013�,�.a+���w�o3�������������}\u001f8g��o$z�i[���u��4�\u0011��rW:H�{\u0016�[�B�\u000e�C��[>������{������\u001c�6���t���g*k���Mq�A��ꖢҁ�z��ݴ+�ƨ�P�T�réF�\f� �\u001f�G+�9��ԏQ�A��\u0006��0G��W�~��rr�U���\u0006Qo�x��|eX�L\\P����\"r\u000b�'�",
+      "H`.>\u0002\u001e\r����T\"x�\u0005�<�f��`����|F\t\f��\u0015T\u0011Ѡ��)_��\u0000jè�^�9��c9�-HH�_Ia��}}\r\u0006�7[?\u000e�3k�\u001cވ��z��\u0013\u0017Ea<",
+      "�\u0010���\u000e���؆ u�,Gy�\u0019k\u0016s\u001c\tr1L\u0016\u0006�\u0006\u001dG�}���\u0012�\u000e�)�<��%M�eA�.�:�NI\u0003\u001e��\u0002��_���q/jEr�N�\u0012�L�b�R�\u0015�\u000e(�s��\"�%r.R�Mi��tx\u000b�⼉���V�=V�[J׈��1�qDʒ�S�͕�\u0013�>�4+�m�vkr\u0011&\u0016��>�~2\u0004��@�Ē��ָ\u0005�Euwt 1��b��w�i[�:֦�u��߿����w���\\�0`�����f�&s �~=���8j�¹�^��ߓX?�<���߿�m\r�g[�����k�ވn1���+\u0016�n>�9�m��]�\u001aϩ|�8O��#�K�*�b�\u0017��KS1I�b��\u0011�;p}�A�R?�&�\u001c:!�����\u0010��\u0005�|]R�J��M����R\u0016�Y���\f%u��\u0013��0�EM\u001d\u0001[\u000fެK��v�\"����a`�'\u0018\u0014��V��@UOƾIV�.3�\u001e8B\u0011�Pa\f}�*������D�)\u00048\u0002v���ر(���8�\u0014v\u0002�u-��c���y�",
+      "y�K:r���RB\u001ay��~\u0014����SV\u0018B急Lljѐ9�vSe�\u001b\u0014��H�\u0001����,6ʻ`�C�\u001c�/'���]����W\u001c\u0017\u0015&{A!�B��a��\u001e�9:�\u0001�,�;��\u0018����}GU��r��.m=�6",
+      "�Ŭ0&\u0019^�wK�� C�&e�l\u001e�Cf47ǲ�`R\u001fØ��1�ӼM;�x�dJC��\u001e��\u0006@�Y�k/�J�w\u0002\f���8߈h[/�Y��me(���\u0004�p~:jW$���gE�Z̋"
+    ],
+    "Deensphere_og_banner.jpg": [
+      "����\u0000\u0010JFIF\u0000\u0001\u0001\u0000\u0000\u0001\u0000\u0001\u0000\u0000��\u0000C\u0000\t\u0006\u0007\b\u0007\u0006\t\b\b\b",
+      "",
+      "\u000e\u0017\u000f\u000e\r\r\u000e\u001c\u0014\u0015\u0011\u0017\"\u001e##!\u001e  %*5-%'2(  .?/279<<<$-BFA:F5;<9��\u0000C\u0001",
+      "",
+      "",
+      "\u000e\f\u000e\u001b\u000f\u000f\u001b9& &99999999999999999999999999999999999999999999999999��\u0000\u0011\b\u0002�\u0003�\u0003\u0001\u0011\u0000\u0002\u0011\u0001\u0003\u0011\u0001��\u0000\u001c\u0000\u0001\u0001\u0000\u0002\u0003\u0001\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0002\u0004\u0003\u0005\u0006\u0007\b��\u0000\u001a\u0001\u0001\u0001\u0001\u0001\u0001\u0001\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0001\u0002\u0003\u0004\u0005\u0006��\u0000\f\u0003\u0001\u0000\u0002\u0010\u0003\u0010\u0000\u0000\u0000���\u0000\u0000\u0004(!@!@\u0000\u0010\u0000\u0000( )",
+      "\b",
+      "\u0000!HP\u0000\u0000\u0000\u0000\u0000\u0000\u0000B�\u0014�\u0000\u0010�\u0000\u0000\u0000\u0000\u0000\u0000\u0000\bP\u0000\u0000\u0002�\u0004�,\u0005 \u0000\u0000\u0000\u0000\u0002\u0014\u0002\u0014\u0010\u0014� ( \u0000\u0014\u0010\u0014\u0000\u0000\u0000\u0000@P\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000�\u0000\u0000\u0001IH\u0000R\u0000\u0005 \u0000\u0004(\u0000\u0014�\u0015\u0004",
+      "\u0000\u0000\u0000\u0000\u0000\u0000\u0000",
+      "�\u0000��\u0014�\u0000R\u0002�@P\u0000\u0004( (\u0000\u0014�\u0000\u0000\u0000\u0000\u0000\u0004()\u0000\u0000\u0000"
+    ],
+    "firebase.json": [
+      "{",
+      "\"firestore\": {",
+      "\"rules\": \"firestore.rules\",",
+      "\"indexes\": \"firestore.indexes.json\"",
+      "}",
+      "}"
+    ],
+    "firestore.indexes.json": [
+      "{",
+      "\"indexes\": [],",
+      "\"fieldOverrides\": [",
+      "{",
+      "\"collectionGroup\": \"data\",",
+      "\"fieldPath\": \"key\",",
+      "\"indexes\": [",
+      "{",
+      "\"order\": \"ASCENDING\",",
+      "\"queryScope\": \"COLLECTION\""
+    ],
+    "firestore.rules": [
+      "rules_version = '2';",
+      "service cloud.firestore {",
+      "match /databases/{database}/documents {",
+      "function owner(uid) { return request.auth != null && request.auth.uid == uid; }",
+      "match /users/{uid}/data/{key} { allow read, delete: if owner(uid); allow create, update: if owner(uid) && (key != \"settings\" || request.resource.data.key == key); }",
+      "match /users/{uid}/push_subscriptions/{id} { allow read, delete: if owner(uid); allow create, update: if owner(uid) && request.resource.data.user_id == uid; }",
+      "}",
+      "}",
+      ""
+    ],
+    "index.html": [
+      "",
+      "",
+      "<!DOCTYPE html>",
+      "<html lang=\"en\">",
+      "<head>",
+      "<meta charset=\"UTF-8\">",
+      "<meta name=\"hosting-provider\" content=\"Netlify\">",
+      "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover\">",
+      "<title>Deen Sphere</title>",
+      "<link rel=\"icon\" type=\"image/png\" href=\"./Deensphere_app_icon.png\">"
+    ],
+    "manifest.json": [
+      "{",
+      "\"id\": \"/\",",
+      "\"name\": \"Deen Sphere\",",
+      "\"short_name\": \"Deen Sphere\",",
+      "\"description\": \"Your daily companion for Salah, Qur'an and Deen.\",",
+      "\"start_url\": \"/\",",
+      "\"scope\": \"/\",",
+      "\"display\": \"standalone\",",
+      "\"launch_handler\": {",
+      "\"client_mode\": \"focus-existing\""
+    ],
+    "news-fallback.png": [
+      "�PNG",
+      "\u001a",
+      "\u0000\u0000\u0000\rIHDR\u0000\u0000\u0006M\u0000\u0000\u0003�\b\u0002\u0000\u0000\u0000�N\u001b�\u0000\u0000UycaBX\u0000\u0000Uyjumb\u0000\u0000\u0000\u001ejumdc2pa\u0000\u0011\u0000\u0010�\u0000\u0000�\u00008�q\u0003c2pa\u0000\u0000\u0000USjumb\u0000\u0000\u0000Gjumdc2ma\u0000\u0011\u0000\u0010�\u0000\u0000�\u00008�q\u0003urn:c2pa:2173c9eb-d73f-4ac4-9327-c87454700bd6\u0000\u0000\u0000\f|jumb\u0000\u0000\u0000)jumdc2as\u0000\u0011\u0000\u0010�\u0000\u0000�\u00008�q\u0003c2pa.assertions\u0000\u0000\u0000\t�jumb\u0000\u0000\u0000;jumd@�\f2��H��\u000b*��Ci\u0013c2pa.icon\u0000\u0000\u0000\u0000\u0018c2sh��<�h͹J�$b��N��\u0000\u0000\u0000\u0017bfdb\u0000image/svg+xml\u0000\u0000\u0000\twbidb<svg width=\"716\" height=\"716\" viewBox=\"0 0 716 716\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">",
+      "<path d=\"M508.749 317.399C516.777 287.314 508.991 253.884 485.389 230.282C461.788 206.681 428.36 198.895 398.273 206.923C376.231 184.928 343.39 174.956 311.148 183.596C278.906 192.234 255.45 217.292 247.36 247.361C217.291 255.451 192.233 278.91 183.595 311.149C174.957 343.391 184.927 376.232 206.924 398.274C198.896 428.359 206.683 461.789 230.284 485.391C253.885 508.992 287.313 516.779 317.401 508.75C339.442 530.745 372.286 540.717 404.525 532.079C436.767 523.441 460.223 498.384 468.313 468.315C498.383 460.224 523.44 436.766 532.078 404.526C540.716 372.285 530.747 339.443 508.749 317.402V317.399ZM470.899 244.776C486.892 260.77 493.488 282.601 490.687 303.412L415.577 260.046C412.411 258.218 408.509 258.218 405.345 260.046L317.401 310.82V277.526C317.401 275.191 318.652 273.005 320.676 271.837L387.644 233.174C414.178 218.353 448.346 222.223 470.901 244.776H470.899ZM357.837 311.144L398.275 334.491V381.185L357.837 404.532L317.398 381.185V334.491L357.837 311.144ZM264.776 269.693C265.207 239.305 285.644 211.649 316.453 203.393C338.3 197.54 360.505 202.744 377.127 215.573L302.014 258.937C298.848 260.764 296.898 264.144 296.898 267.798V369.346L268.065 352.699C266.043 351.531 264.776 349.353 264.776 347.017V269.691V269.693ZM203.391 316.454C209.244 294.608 224.854 277.978 244.276 269.999V356.73C244.276 360.384 246.226 363.763 249.392 365.591L337.337 416.365L308.503 433.013C306.481 434.181 303.961 434.188 301.939 433.02L234.971 394.357C208.868 378.789 195.138 347.261 203.391 316.454ZM244.775 470.9C228.781 454.906 222.186 433.075 224.986 412.264L300.096 455.63C303.263 457.457 307.164 457.457 310.328 455.63L398.273 404.856V438.149C398.273 440.485 397.022 442.671 394.997 443.839L328.029 482.502C301.495 497.322 267.327 493.452 244.772 470.9H244.775ZM450.897 445.982C450.466 476.371 430.029 504.027 399.22 512.283C377.373 518.136 355.168 512.932 338.547 500.102L413.659 456.738C416.826 454.911 418.775 451.532 418.775 447.877V346.329L447.609 362.977C449.631 364.145 450.897 366.323 450.897 368.659V445.985V445.982ZM512.282 399.221C506.429 421.068 490.819 437.697 471.397 445.676V358.946C471.397 355.292 469.448 351.912 466.281 350.085L378.336 299.311L407.17 282.663C409.192 281.495 411.712 281.487 413.734 282.655L480.702 321.318C506.805 336.887 520.536 368.415 512.282 399.221Z\" fill=\"black\"/>",
+      "</svg>",
+      "\u0000\u0000\u0001�jumb\u0000\u0000\u0000Ajumdcbor\u0000\u0011\u0000\u0010�\u0000\u0000�\u00008�q\u0013c2pa.actions.v2\u0000\u0000\u0000\u0000\u0018c2sh*",
+      "ݜ����AÄ���8\t\u0000\u0000\u0001ncbor�gactions��factionlc2pa.createddwhen�x\u001e2026-10-18T19:37:30.867225030ZmsoftwareAgent�dnamegChatGPTgversionigpt-imageqdigitalSourceTypexFhttp://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia�factionnc2pa.converteddwhen�x\u001e2026-10-18T19:37:30.867226932Z�factionx\u0018c2pa.watermarked.unbounddwhen�x\u001e2026-10-18T19:37:30.866655242ZrallActionsIncluded�\u0000\u0000\u0000�jumb\u0000\u0000\u0000@jumdcbor\u0000\u0011\u0000\u0010�\u0000\u0000�\u00008�q\u0013c2pa.hash.data\u0000\u0000\u0000\u0000\u0018c2sh:��\u001fp\u0006W��&���3\b\u0000\u0000\u0000{cbor�jexclusions��estart\u0018!flength\u0019U�dnamenjumbf manifestcalgfsha256dhashX �d�(^ �\u0018����R�O�[]c�/�",
+      "��\u0019[���cpadH\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0002�jumb\u0000\u0000\u0000'jumdc2cl\u0000\u0011\u0000\u0010�\u0000\u0000�\u00008�q\u0003c2pa.claim.v2\u0000\u0000\u0000\u0002�cbor�jinstanceIDx,xmp:iid:3d6a72b0-7dd7-418c-9845-7ee1f02c5c8ctclaim_generator_info�dnamex\u0018OpenAI Media Service APIdicon�curlx$self#jumbf=c2pa.assertions/c2pa.icondhashX �o��\u001e�l�;7�C�Ȍ�EvW�\u001b���FUxJ-�zUkspecVersione2.2.0worg.contentauth.c2pa_rsf0.79.2isignaturexMself#jumbf=/c2pa/urn:c2pa:2173c9eb-d73f-4ac4-9327-c87454700bd6/c2pa.signaturercreated_assertions��curlx$self#jumbf=c2pa.assertions/c2pa.icondhashX �o��\u001e�l�;7�C�Ȍ�EvW�\u001b���FUxJ-�zU�curlx*self#jumbf=c2pa.assertions/c2pa.actions.v2dhashX ؄Q��=R��\u0019�\u0014�n",
+      "�_�ª��7��}��\b\t�\u001a�curlx)self#jumbf=c2pa.assertions/c2pa.hash.datadhashX ��V�,\tQ'�I�+\u0004U;�c�\u0016��5ͤ��$A�3'",
+      "hdc:titleiimage.pngcalgfsha256\u0000\u0000E�jumb\u0000\u0000\u0000(jumdc2cs\u0000\u0011\u0000\u0010�\u0000\u0000�\u00008�q\u0003c2pa.signature\u0000\u0000\u0000E�cbor҄Y\u0007U�\u0001&\u0018!�Y\u0003r0�\u0003n0�\u0002�\u0003\u0002\u0001\u0002\u0002\u0014R�%\u0007��j��3\u0017xp֎��b\u001aA0"
+    ],
+    "package.json": [
+      "{",
+      "\"type\": \"module\",",
+      "\"dependencies\": {",
+      "\"firebase-admin\": \"^13.0.0\",",
+      "\"web-push\": \"^3.6.7\"",
+      "}",
+      "}",
+      ""
+    ],
+    "public-config.js": [
+      "window.DEEN_CONFIG = {",
+      "firebase: {",
+      "apiKey: \"AIzaSyB7rzfJDaEZOqSjwosDlUlLa2WD7ZPuxEw\",",
+      "authDomain: \"deensphere1922-b911d.firebaseapp.com\",",
+      "projectId: \"deensphere1922-b911d\",",
+      "storageBucket: \"deensphere1922-b911d.firebasestorage.app\",",
+      "messagingSenderId: \"981987516710\",",
+      "appId: \"1:981987516710:web:52177bffe294a3152161e7\",",
+      "measurementId: \"G-HE1DPKPP6J\"",
+      "},"
+    ],
+    "push-service-worker.js": [
+      "// // // /* ============================= PENDING PRAYER STORAGE ============================= */",
+      "",
+      "// // // const PENDING_DB_NAME = 'deen-sphere-pending';",
+      "// // // const PENDING_DB_VERSION = 1;",
+      "// // // const PENDING_STORE = 'pending-prayers';",
+      "",
+      "// // // function openPendingDB() {",
+      "// // //   return new Promise((resolve, reject) => {",
+      "// // //     const req = indexedDB.open(PENDING_DB_NAME, PENDING_DB_VERSION);",
+      "// // //     req.onupgradeneeded = () => {"
+    ],
+    "README-NEW-DEPLOYMENT.md": [
+      "# Deen Sphere — independent Firebase migration draft",
+      "",
+      "This is a separate copy of the uploaded project. Do not replace the original GitHub repository, Vercel project, or Supabase project. This package contains no old Supabase runtime connection. JavaScript syntax was checked, but no live Firebase, Vercel, AI, browser, or push delivery tests were performed. Treat it as a migration draft, not a verified production release.",
+      "",
+      "## 1. Create independent resources",
+      "",
+      "Use a separate GitHub repository and Vercel project. Vercel Hobby is for eligible personal/non-commercial use. For all services, the account owner must meet the provider's eligibility requirements. Keep Firebase on Spark and use only AI projects that have free access and no billing enabled. Do not attach a billing account or use trial credits as a substitute for an ongoing free plan.",
+      "",
+      "## 2. Firebase",
+      ""
+    ],
+    "service-worker.js": [
+      "importScripts('/push-service-worker.js');",
+      "",
+      "const CACHE_VERSION = 'v13-firebase';",
+      "",
+      "self.addEventListener('install', () => self.skipWaiting());",
+      "",
+      "self.addEventListener('activate', (event) => {",
+      "event.waitUntil((async () => {",
+      "try {",
+      "const keys = await caches.keys();"
+    ],
+    "vercel.json": [
+      "{",
+      "\"rewrites\": [",
+      "{",
+      "\"source\": \"/((?!api/).*)\",",
+      "\"destination\": \"/index.html\"",
+      "}",
+      "],",
+      "\"functions\": {",
+      "\"api/news-cron.js\": {",
+      "\"maxDuration\": 60"
+    ]
+  },
+  "importantFolders": [
+    {
+      "path": "api",
+      "category": "backend",
+      "fileCount": 5,
+      "primaryLanguage": "JavaScript"
+    },
+    {
+      "path": "DeenSphereNativeApp",
+      "category": "frontend",
+      "fileCount": 2
+    },
+    {
+      "path": "lib",
+      "category": "core",
+      "fileCount": 1,
+      "primaryLanguage": "JavaScript"
+    }
+  ],
+  "readmeParagraphs": {},
+  "totals": {
+    "numFiles": 24,
+    "numDirs": 4,
+    "totalSizeBytes": 11875408,
+    "totalLinesOfCode": 2899
+  },
+  "fileCategories": {
+    "other": 7,
+    "source": 9,
+    "config": 7,
+    "documentation": 1
+  },
+  "linesOfCodePerLanguage": {
+    "JavaScript": 2899
+  },
+  "filesPerLanguage": {
+    "JavaScript": 9
+  },
+  "projectTypes": [
+    "JavaScript/Node.js"
+  ],
+  "frameworks": [],
+  "entryPoints": [],
+  "ciCdTools": [],
+  "packageManagers": [
+    "npm/yarn"
+  ],
+  "topLevelDirectories": [
+    {
+      "name": "api",
+      "numFiles": 5,
+      "totalLoc": 2099,
+      "dominantLanguage": "JavaScript"
+    },
+    {
+      "name": "lib",
+      "numFiles": 1,
+      "totalLoc": 10,
+      "dominantLanguage": "JavaScript"
+    },
+    {
+      "name": "DeenSphereNativeApp",
+      "numFiles": 2,
+      "totalLoc": 0
+    },
+    {
+      "name": "fonts",
+      "numFiles": 1,
+      "totalLoc": 0
+    }
+  ],
+  "detailedDirectories": [
+    {
+      "path": "api",
+      "name": "api",
+      "level": 1,
+      "numFiles": 5,
+      "totalLoc": 2099,
+      "dominantLanguage": "JavaScript",
+      "category": "Service",
+      "description": "Service module with 5 files (JavaScript)",
+      "subdirectories": []
+    },
+    {
+      "path": "lib",
+      "name": "lib",
+      "level": 1,
+      "numFiles": 1,
+      "totalLoc": 10,
+      "dominantLanguage": "JavaScript",
+      "category": "Library",
+      "description": "Library module with 1 files (JavaScript)",
+      "subdirectories": []
+    },
+    {
+      "path": "DeenSphereNativeApp",
+      "name": "DeenSphereNativeApp",
+      "level": 1,
+      "numFiles": 2,
+      "totalLoc": 0,
+      "category": "Application",
+      "description": "Application module with 2 files",
+      "subdirectories": []
+    },
+    {
+      "path": "fonts",
+      "name": "fonts",
+      "level": 1,
+      "numFiles": 1,
+      "totalLoc": 0,
+      "category": "General",
+      "description": "General module with 1 files",
+      "subdirectories": []
+    }
+  ],
+  "architecturalInsights": {
+    "coreApplications": [
+      {
+        "path": "api",
+        "name": "api",
+        "level": 1,
+        "numFiles": 5,
+        "totalLoc": 2099,
+        "dominantLanguage": "JavaScript",
+        "category": "Service",
+        "description": "Service module with 5 files (JavaScript)",
+        "subdirectories": []
+      },
+      {
+        "path": "DeenSphereNativeApp",
+        "name": "DeenSphereNativeApp",
+        "level": 1,
+        "numFiles": 2,
+        "totalLoc": 0,
+        "category": "Application",
+        "description": "Application module with 2 files",
+        "subdirectories": []
+      }
+    ],
+    "entryPointDetails": [],
+    "serviceArchitecture": {
+      "microservices": [
+        "api"
+      ],
+      "monoliths": [],
+      "libraries": [
+        "lib"
+      ]
+    },
+    "layeredArchitecture": {
+      "presentation": [],
+      "business": [],
+      "data": [],
+      "infrastructure": []
+    }
+  },
+  "largeFiles": [
+    {
+      "path": "Deensphere_app_icon.png",
+      "sizeMb": 8.08
+    },
+    {
+      "path": "news-fallback.png",
+      "sizeMb": 1.99
+    }
+  ],
+  "dependencies": {
+    "production": [
+      "firebase-admin",
+      "web-push"
+    ],
+    "development": [],
+    "total": 2
+  },
+  "complexity": {
+    "averageFileSize": 120.79166666666667,
+    "maxFileSize": 84724.9408,
+    "nestedDepth": 0,
+    "estimatedComplexity": "low"
+  }
+}
