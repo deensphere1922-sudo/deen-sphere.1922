@@ -603,7 +603,9 @@ if (question.trim()) {
 
 const trustedDomains = [
   'quran.com',
-  'sunnah.com'
+  'quranenc.com',
+  'sunnah.com',
+  'hadeethenc.com'
 ];
 
 const researchSources = rawSources.filter(source => {
