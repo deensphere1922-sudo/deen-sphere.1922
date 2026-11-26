@@ -5182,7 +5182,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
             if (verse) _applyVerseHighlight(surahNum, verse);
             const next = timings.find(t => t.start > cur);
             if (!next) return;
-            const delay = Math.max(20, (next.start - cur) * 1000 / (a.playbackRate || 1));
+            const delay = Math.max(4, (next.start - cur) * 1000 / (a.playbackRate || 1));
             a.__verseTimer = setTimeout(() => {
               // Re-read media time: buffering, seeking and timer throttling must never advance the verse early.
               _scheduleVerseHighlight(a, surahNum);
@@ -5215,7 +5215,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
                   const topbar = document.querySelector('.topbar');
                   const stickyBottom = Math.max(0, header?.getBoundingClientRect().bottom || 0, topbar?.getBoundingClientRect().bottom || 0);
                   activeVerseEl.style.scrollMarginTop = `${stickyBottom + 16}px`;
-                  activeVerseEl.scrollIntoView({ block: 'start', inline: 'nearest', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+                  activeVerseEl.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'instant' });
                   clearTimeout(window.__autoScrollTimer);
                   window.__autoScrollTimer = setTimeout(() => { _autoScrolling = false; }, 1000);
                 });
@@ -5431,6 +5431,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
             a.addEventListener('timeupdate', updateUI);
 
                     a.addEventListener('play', () => {
+              if (_qAudio !== a) return;
               try { a.playbackRate = _playbackRate; } catch (e) { }
               if (_isPlayingFullSurah && _qAudio === a) {
                 _fullSurahPointerFrozen = false;
@@ -5447,6 +5448,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
             });
 
             a.addEventListener('seeking', () => {
+              if (_qAudio !== a) return;
               if (_isPlayingFullSurah && _currentSurahNum) {
                 const dur = a.duration && isFinite(a.duration) ? a.duration : 0;
                 if (dur > 0) {
@@ -5458,12 +5460,14 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
             });
 
             a.addEventListener('seeked', () => {
+              if (_qAudio !== a) return;
               if (_isPlayingFullSurah && _currentSurahNum) {
                 _scheduleVerseHighlight(a, _currentSurahNum);
               }
             });
 
                     a.addEventListener('pause', () => {
+              if (_qAudio !== a) return;
               // Kill the pending verse-transition timer — nothing should fire
               // while the player is paused.
               clearTimeout(a.__verseTimer);
@@ -5479,6 +5483,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
             });
 
             a.addEventListener('ended', () => {
+              if (_qAudio !== a) return;
               _abSetPlaying(false);
               _abSetProgressUI(0, 0, 0);
               _hideMiniPill();
@@ -5805,7 +5810,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
               }
 
               const timings = json.recitation_timings.map(entry => {
-                const startMs = parseFloat(entry?.timestamps?.start_ms ?? 0);
+                const startMs = parseFloat(entry?.timestamps?.start_ms ?? NaN);
                 const endMs = parseFloat(entry?.timestamps?.end_ms ?? 0);
                 const vKey = String(entry.verse || '');
                 const verseNum = parseInt(vKey.split(':')[1] || '0', 10) || 0;
@@ -5838,14 +5843,6 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
             if (!meta) return null;
             const timings = _verseTimingsCache[surahNum];
             if (timings && timings.length) {
-              for (let i = 0; i < timings.length; i++) {
-                if (
-                  currentTime >= timings[i].start &&
-                  currentTime < timings[i].end
-                ) {
-                  return timings[i].verse;
-                }
-              }
               let previousVerse = null;
               for (let i = 0; i < timings.length; i++) {
                 if (currentTime >= timings[i].start) {
@@ -5987,6 +5984,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
 
                 if (fullSurahWasActive) {
                   if (_qAudio) { try { _qAudio.pause(); } catch (e) { } }
+                  _isPlayingFullSurah = false;
                   _qAudioBtn = null;
                 } else {
                   _qStopAudio(false);
