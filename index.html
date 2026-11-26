@@ -4269,9 +4269,12 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
             return window.fb?.auth?.currentUser?.uid || window.__sbUid || S?._lastUid || S?.profile?.uid || null;
           }
             async function getJSON(key) {
+            if (key === 'quran-progress' && _fullSurahOwnsPointer) return S.quranProgress;
+            const readStartedAt = Number(_localWriteAt[key]) || 0;
             const uid = getCloudUid();
             if (uid && window.fb?.auth?.currentUser?.uid === uid) {
               try { const snap=await Promise.race([window.fb.getDoc(window.fb.doc(window.fb.db,'users',uid,'data',key)),new Promise((_,reject)=>setTimeout(()=>reject(Error('Cloud read timeout')),8000))]);
+                if (key === 'quran-progress' && (_fullSurahOwnsPointer || (Number(_localWriteAt[key]) || 0) !== readStartedAt)) return S.quranProgress;
                 if(snap.exists()){let val=snap.data().value;if(key==='pfp'){const local=JSON.parse(localStorage.getItem(_lsKey(key))||'null');if(local && Number(local.updatedAt)>Number(val?.updatedAt)) val=local;} try{localStorage.setItem(_lsKey(key),JSON.stringify(val));}catch{} return val;}
               }catch(e){console.warn('Cloud read failed',key,e);}
             }
@@ -4999,13 +5002,21 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
           }
 
         function _refreshContinueReadingBox() {
+        const p = S.quranProgress || { surah: 1, verse: 1 };
+        const profile = document.getElementById('profile-quran-progress');
+        const meta = SURAHS.find(x => x.num === p.surah);
+        if (profile) profile.textContent = `Surah ${p.surah}:${p.verse}` + (meta ? ` — ${meta.translit}` : '');
+        const open = document.getElementById('profile-open-quran');
+        if (open) {
+          open.dataset.surah = String(p.surah);
+          open.dataset.verse = String(p.verse);
+        }
         const cr = document.getElementById('continue-reading');
         if (!cr) return;
-        const p = S.quranProgress || { surah: 1, verse: 1 };
 
         // Build the full HTML string first.
         let html = '';
-        if (!(p.surah === 1 && p.verse === 1)) {
+        if (!(p.surah === 1 && p.verse === 1) || _fullSurahOwnsPointer || p.clientUpdatedAt) {
           const sur = SURAHS.find(x => x.num === p.surah);
           if (sur) {
             html = `<button class="card" data-nav="quran-reader" data-arg="${sur.num}" style="width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;">
@@ -5226,7 +5237,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
 
             if (S.quranProgress?.surah !== surahNum || S.quranProgress?.verse !== verseNow) {
               if (!_fullSurahOwnsPointer) return;
-              S.quranProgress = { surah: surahNum, verse: verseNow };
+              S.quranProgress = { surah: surahNum, verse: verseNow, clientUpdatedAt: Date.now() };
               _refreshContinueReadingBox();
               const profEl = document.getElementById('profile-quran-progress');
               if (profEl) {
@@ -5289,7 +5300,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
             _fullSurahOwnsPointer = true;
             _lockedSurahNum = _currentSurahNum;
             _lastPlaybackPos = { surahNum: _currentSurahNum, verse: v, seconds: cur, audioSource: 'qul-yasser-murattal-v1' };
-            S.quranProgress = { surah: _currentSurahNum, verse: v };
+            S.quranProgress = { surah: _currentSurahNum, verse: v, clientUpdatedAt: Date.now() };
 
             setJSON('audio-position', _lastPlaybackPos).catch(() => { });
             setJSON('quran-progress', S.quranProgress).catch(() => { });
@@ -8182,7 +8193,7 @@ if (!window.__deenHandlingPopState) {
 
                   if (screen === 'profile') {
                     const fresh = await getJSON('quran-progress');
-                    if (fresh && fresh.surah && fresh.verse && S.screen === 'profile') {
+                    if (!_fullSurahOwnsPointer && fresh && fresh.surah && fresh.verse && S.screen === 'profile') {
                       S.quranProgress = fresh;
                       const el = document.getElementById('profile-quran-progress');
                       if (el) {
@@ -8198,7 +8209,7 @@ if (!window.__deenHandlingPopState) {
                       getJSON('completed-surahs')
                     ]);
                     if (S.screen !== 'quran-library') return;
-                    if (freshProgress && freshProgress.surah && freshProgress.verse) {
+                    if (!_fullSurahOwnsPointer && freshProgress && freshProgress.surah && freshProgress.verse) {
                       S.quranProgress = freshProgress;
                       _refreshContinueReadingBox();
                     }
@@ -11675,7 +11686,7 @@ function _calculateQuranReadStats(targetDateStr) {
         function renderQuranLibrary() {
         const p = S.quranProgress || { surah: 1, verse: 1 };
         let crHTML = '';
-        if (!(p.surah === 1 && p.verse === 1)) {
+        if (!(p.surah === 1 && p.verse === 1) || _fullSurahOwnsPointer || p.clientUpdatedAt) {
           const sur = SURAHS.find(x => x.num === p.surah);
           if (sur) {
             crHTML = `<button class="card" data-nav="quran-reader" data-arg="${sur.num}" style="width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;">
@@ -11701,6 +11712,7 @@ function _calculateQuranReadStats(targetDateStr) {
           </div>`;
       }
         async function hydrateQuranLibrary() {
+        _refreshContinueReadingBox();
         renderQuranGrid('');
         const s = $('#quran-search');
         if (s) s.oninput = () => renderQuranGrid(s.value.trim().toLowerCase());
@@ -11710,7 +11722,7 @@ function _calculateQuranReadStats(targetDateStr) {
         // If it returns null or the same value, leave the DOM untouched.
         try {
           const fresh = await getJSON('quran-progress');
-          if (fresh && fresh.surah && fresh.verse) {
+          if (!_fullSurahOwnsPointer && fresh && fresh.surah && fresh.verse) {
             const changed =
               !S.quranProgress ||
               S.quranProgress.surah !== fresh.surah ||
@@ -14306,9 +14318,23 @@ ${hasQuranReading ? `
           </div>`;
           }
                         function bindProfile() {
+              const openBtn = document.getElementById('profile-open-quran');
+              if (openBtn) {
+                openBtn.onclick = (e) => {
+                  e.preventDefault();
+                  e.stopPropagation(); // STOP the global router from running and scrolling to top
+                  const targetSurah = Number(S.quranProgress?.surah) || 1;
+                  const targetVerse = Number(S.quranProgress?.verse) || 1;
+                  go('quran-reader', targetSurah, targetVerse);
+                };
+                openBtn.style.touchAction = 'manipulation';
+                openBtn.style.cursor = 'pointer';
+              }
+
+
             (async () => {
               const fresh = await getJSON('quran-progress');
-              if (fresh && fresh.surah && fresh.verse) {
+              if (!_fullSurahOwnsPointer && fresh && fresh.surah && fresh.verse) {
                 S.quranProgress = fresh;
                 const el = document.getElementById('profile-quran-progress');
                 if (el) {
@@ -14322,18 +14348,6 @@ ${hasQuranReading ? `
                 }
               }
 
-              const openBtn = document.getElementById('profile-open-quran');
-              if (openBtn) {
-                openBtn.onclick = (e) => {
-                  e.preventDefault();
-                  e.stopPropagation(); // STOP the global router from running and scrolling to top
-                  const targetSurah = parseInt(openBtn.dataset.surah, 10) || 1;
-                  const targetVerse = parseInt(openBtn.dataset.verse, 10) || 1;
-                  go('quran-reader', targetSurah, targetVerse);
-                };
-                openBtn.style.touchAction = 'manipulation';
-                openBtn.style.cursor = 'pointer';
-              }
             })();
             
             $$('[data-bmgo]').forEach(el => el.onclick = (e) => {
