@@ -8,5 +8,5 @@ window.DEEN_CONFIG = {
     appId: "1:981987516710:web:52177bffe294a3152161e7",
     measurementId: "G-HE1DPKPP6J"
   },
-  vapidPublicKey: "REPLACE"
+  vapidPublicKey: "BKWi6yc4OOZsFSYckJzfZWgjADcBY77189VlDkmIGoMS1XOlQPCM4Quw_kLrZfydHCaqvH59PSuhEFuMusXZih4"
 };
