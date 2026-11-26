@@ -10,14 +10,14 @@
   const sourceGroups = [
     {
       type: 'Qur’an evidence',
-      domains: ['quran.com'],
+      domains: ['quran.com', 'quranenc.com'],
       limit: 6,
       query: (question) =>
         `Find Quran verses and English translations directly answering this question: ${question}. Include exact Surah and verse references.`
     },
     {
       type: 'Hadith evidence',
-      domains: ['sunnah.com'],
+      domains: ['sunnah.com', 'hadeethenc.com'],
       limit: 6,
       query: (question) =>
         `Find relevant English Hadith directly answering this question: ${question}. Include collection, Hadith number and authenticity grade when available.`
