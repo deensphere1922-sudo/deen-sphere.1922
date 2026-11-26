@@ -170,6 +170,24 @@
     return '';
   }
   
+
+function selectContext(raw, snippet, topic, limit=12000) {
+  const page=typeof raw==='string'?raw.trim():'';
+  const lead=typeof snippet==='string'?snippet.trim():'';
+  if(!page) return {content:lead.slice(0,limit),evidenceQuality:'search_snippet'};
+  // Contiguous window near matching terms; retain adjacent context.
+  const terms=topic.terms||[];
+  const windows=[];
+  for(let i=0;i<page.length && i<120000;i+=2400){
+    const text=page.slice(i,i+4800);
+    const words=new Set(tokenize(text));
+    windows.push({i,score:terms.filter(t=>words.has(t)).length});
+  }
+  windows.sort((a,b)=>b.score-a.score||a.i-b.i);
+  const start=Math.max(0,(windows[0]?.i||0)-1200);
+  return {content:page.slice(start,start+limit),evidenceQuality:'page_excerpt'};
+}
+
 function classifySource(url) {
   const u = new URL(url);
   if (/(^|\.)quran\.com$/.test(u.hostname) && /\/tafsirs?(?:\/|$)/i.test(u.pathname)) return 'Tafsir evidence';
@@ -284,19 +302,19 @@ function classifySource(url) {
           if (!result || typeof result.url !== 'string' || typeof result.content !== 'string' || !isTrustedUrl(result.url, group.domains)) continue;
           const url = new URL(result.url);
           const title = typeof result.title === 'string' && result.title.trim() ? result.title.trim().slice(0, 250) : url.hostname;
-        const content = [result.content, result.raw_content].filter(Boolean).join("\n").slice(0, 12000);
-          if (group.type === 'Qur’an evidence' && !isEnglishQuranUrl(url)) continue;
+        const {content,evidenceQuality} = selectContext(result.raw_content,result.content,topic);
+          if (/(^|\.)quran\.com$/.test(url.hostname) && !isEnglishQuranUrl(url)) continue;
           if (!looksEnglish(`${title} ${content}`)) continue;
           const providerScore = typeof result.score === 'number' ? result.score : 0;
           const relevance = calculateRelevance(topic, title, content, providerScore);
           if (relevance < MIN_RELEVANCE_SCORE) continue;
-          candidates.push({ title, url: url.href, content, sourceType: classifySource(url.href), evidenceQuality: result.raw_content ? "page_excerpt" : "search_snippet", score: relevance });
+          candidates.push({ title, url: url.href, content, sourceType: classifySource(url.href), evidenceQuality, score: relevance });
         }
       }
   
   
     // SERPER BACKUP WEB SEARCH
-  if (candidates.length === 0) {
+  if (candidates.length === 0 || !sourceGroups.every(group=>candidates.some(c=>c.sourceType===group.type))) {
     const serperKey = process.env.SERPER_API_KEY?.trim();
   
     if (serperKey) {
@@ -384,7 +402,7 @@ function classifySource(url) {
   const seenTitles = new Set();
   
   const unique = candidates
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => Number(b.evidenceQuality==='page_excerpt')-Number(a.evidenceQuality==='page_excerpt') || b.score-a.score)
     .filter(source => {
       const url = new URL(source.url);
   
