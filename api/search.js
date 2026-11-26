@@ -212,7 +212,7 @@
                 max_results: group.limit,
                 include_domains: group.domains,
                 include_answer: false,
-                include_raw_content: false
+                include_raw_content: true
               }),
               signal: AbortSignal.timeout(12000)
             }
@@ -276,7 +276,9 @@
           if (!result || typeof result.url !== 'string' || typeof result.content !== 'string' || !isTrustedUrl(result.url, group.domains)) continue;
           const url = new URL(result.url);
           const title = typeof result.title === 'string' && result.title.trim() ? result.title.trim().slice(0, 250) : url.hostname;
-          const content = result.content.slice(0, 5000);
+        const content = String(
+  result.raw_content || result.content || ''
+).slice(0, 12000);
           if (group.type === 'Qur’an evidence' && !isEnglishQuranUrl(url)) continue;
           if (!looksEnglish(`${title} ${content}`)) continue;
           const providerScore = typeof result.score === 'number' ? result.score : 0;
