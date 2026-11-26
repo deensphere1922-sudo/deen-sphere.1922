@@ -110,17 +110,20 @@ async function sendUserNotification(userId, payload, notificationKey) {
   let delivered = false;
 
   const pref=payload.prayer || (notificationKey.includes('adhkar')?'adhkar':notificationKey.startsWith('quran')?'quran':notificationKey.startsWith('birthday')?'birthday':null);
-  for (const row of subscriptions) {
-    if(pref && row.notif?.[pref] !== true) continue;
+  await Promise.allSettled(subscriptions.map(async row => {
+    if(pref && row.notif?.[pref] !== true) return;
     try {
       await webpush.sendNotification(
         row.subscription,
         JSON.stringify(finalPayload),
-        { TTL: 3600 }
+       {
+  TTL: 3600,
+  urgency: 'high'
+}
       );
     delivered = true;
 
-console.log('PUSH SUCCESS:',
+console.log('PUSH SUCCESS:', notificationKey, new Date().toISOString(),
   new URL(row.subscription.endpoint).hostname
 );
 
@@ -136,7 +139,7 @@ console.log('PUSH SUCCESS:',
         await row.ref.delete();
       }
     }
-  }
+  }));
 
   if (!delivered) {
     await claim.delete();
@@ -181,7 +184,7 @@ async function handleNews(profiles) {
       for (const s of subs) {
         if(s.notif?.news !== true) continue;
         try {
-          await webpush.sendNotification(s.subscription, JSON.stringify(payload), { TTL: 3600 });
+          await webpush.sendNotification(s.subscription, JSON.stringify(payload), { TTL: 3600, urgency: 'high' });
           delivered = true;
         } catch (e) {
           if (e.statusCode === 410 || e.statusCode === 404) {
@@ -208,30 +211,29 @@ export default async function handler(req, res) {
   if (!process.env.CRON_SECRET || req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) return res.status(401).send("Unauthorized");
   try {
     const now = new Date();
+    console.log('CRON START:', now.toISOString());
     const profiles = (await db.collectionGroup('data').where('key','==','settings').get()).docs.map(d=>({user_id:d.ref.parent.parent.id,value:d.data().value}));
 
     if (!profiles || profiles.length === 0) return res.status(200).send('No user settings found.');
 
     let sentCount = 0;
-    if (now.getUTCMinutes()%15===0) sentCount += await handleNews(profiles);
-
-    for (const profile of profiles) {
+    const processProfile = async profile => {
       try {
         const settings = profile.value || {};
-        if (!settings.setupDone || !settings.location) continue;
+        if (!settings.setupDone || !settings.location) return;
 
         const lat = settings.location.lat;
         const lng = settings.location.lng;
-        if (lat == null || lng == null) continue;
+        if (lat == null || lng == null) return;
 
         const calcMethod = settings.calcMethod || 'MWL';
         const asrMethod = settings.asrMethod || 'standard';
 
         const tzName = settings.location.timezone || settings.timezone;
-        if (!tzName) continue;
+        if (!tzName) return;
 
         let local;
-        try { local = localPartsFor(tzName, now); } catch { continue; }
+        try { local = localPartsFor(tzName, now); } catch { return; }
 
         const localDate = { year: local.year, month: local.month, day: local.day };
         const at = local.minutes;
@@ -241,20 +243,41 @@ export default async function handler(req, res) {
         const hitExact = (targetMinute) => isWithinExactWindow(targetMinute, at);
         const allowed = (key) => !settings.notif || settings.notif[key] !== false;
 
+        const send = async (payload, key) => {
+          const delivered = await sendUserNotification(profile.user_id, payload, key);
+          if (delivered) sentCount++;
+        };
+
+        // Fixed-time reminders: no prayer API dependency
+        if (hitExact(7 * 60) && allowed('adhkar')) {
+          await send({ title: '🌅 Morning Adhkar', body: 'Start your day with the remembrance of Allah.' }, `morning-adhkar-${today}`);
+        }
+        if (hitExact(18 * 60) && allowed('adhkar')) {
+          await send({ title: '🌇 Evening Adhkar', body: 'Take a moment to remember Allah before the day ends.' }, `evening-adhkar-${today}`);
+        }
+     
+        if (hitExact(9 * 60) && settings.birthday && allowed('birthday')) {
+          try {
+            const [, birthdayMonth, birthdayDay] = String(settings.birthday).split('-').map(Number);
+            if (birthdayMonth === local.month && birthdayDay === local.day) {
+              await send({ title: '🎂 Happy Birthday', body: 'May Allah bless your year ahead. Take a moment for gratitude today.' }, `birthday-${today}`);
+            }
+          } catch {}
+        }
+
+        if (hitExact(20 * 60) && allowed('quran')) {
+          await send({ title: "📖 Qur'an Reminder", body: "A moment with the Qur'an brings peace." }, `quran-${today}`);
+        }
+
         let userMin;
-        try { userMin = await getAladhanTimings(lat, lng, tzName, calcMethod, asrMethod, localDate); } catch { continue; }
+        try { userMin = await getAladhanTimings(lat, lng, tzName, calcMethod, asrMethod, localDate); } catch { return; }
 
         const getTargetTime = (minuteOfDay, baseDate) => {
           const dayOffset = Math.floor(minuteOfDay / 1440);
           const wrapped = ((minuteOfDay % 1440) + 1440) % 1440;
           const h = Math.floor(wrapped / 60);
           const m = wrapped % 60;
-          return new Date(baseDate.year, baseDate.month - 1, baseDate.day + dayOffset, h, m, 0).getTime();
-        };
-
-        const send = async (payload, key) => {
-          const delivered = await sendUserNotification(profile.user_id, payload, key);
-          if (delivered) sentCount++;
+          return Math.floor(now.getTime() / 60000) * 60000 + (dayOffset * 1440 + h * 60 + m - at) * 60000;
         };
 
         // FIVE PRAYERS (Using hitPrayer = 1 min late safety)
@@ -291,26 +314,17 @@ export default async function handler(req, res) {
           await send({ title: '🕌 Isha Check', body: 'Did you offer Isha? Tap to log your prayer now.', prayer: 'isha', kind: 'check' }, `isha-check-${today}`);
         }
 
-        // ADHKAR / QURAN / BIRTHDAY (Using hitExact)
-        if (hitExact(7 * 60) && allowed('adhkar')) {
-          await send({ title: '🌅 Morning Adhkar', body: 'Start your day with the remembrance of Allah.' }, `morning-adhkar-${today}`);
-        }
-        if (hitExact(18 * 60) && allowed('adhkar')) {
-          await send({ title: '🌇 Evening Adhkar', body: 'Take a moment to remember Allah before the day ends.' }, `evening-adhkar-${today}`);
-        }
-       if (hitExact(20 * 60) && allowed('quran')) {
-          await send({ title: '📖 Qur\'an Reminder', body: 'A moment with the Qur\'an brings peace.' }, `quran-${today}`);
-        }
-        if (hitExact(9 * 60) && settings.birthday && allowed('birthday')) {
-          try {
-            const [, birthdayMonth, birthdayDay] = String(settings.birthday).split('-').map(Number);
-            if (birthdayMonth === local.month && birthdayDay === local.day) {
-              await send({ title: '🎂 Happy Birthday', body: 'May Allah bless your year ahead. Take a moment for gratitude today.' }, `birthday-${today}`);
-            }
-          } catch {}
-        }
-
       } catch (profileError) { console.warn("Notification profile failed",profileError.message); }
+    };
+
+    // Bounded concurrency avoids serial waits across users.
+    for (let i = 0; i < profiles.length; i += 10) {
+      await Promise.allSettled(profiles.slice(i, i + 10).map(processProfile));
+    }
+
+    // News must never short-circuit scheduled notifications.
+    if (now.getUTCMinutes() % 15 === 0) {
+      sentCount += await handleNews(profiles);
     }
 
     if (sentCount > 0) return res.status(200).send(`Sent ${sentCount} notifications.`);
