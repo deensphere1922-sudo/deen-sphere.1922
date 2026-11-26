@@ -597,16 +597,19 @@ async function callGroq(model, apiKey, messages, systemPrompt, signal) {
 // Accept only a candidate that passes the evidence review. A separate model call
 // is a heuristic review, not a guarantee of religious correctness.
 async function raceModels(candidates, invoke, clientSignal) {
-  const deadline = AbortSignal.timeout(28000);
+  const deadline = AbortSignal.timeout(30000);
   const shared = clientSignal ? AbortSignal.any([deadline, clientSignal]) : deadline;
   let error;
   for (const candidate of candidates) {
     if (shared.aborted) break;
     try {
-      const signal = AbortSignal.any([shared, AbortSignal.timeout(14000)]);
+      const signal = AbortSignal.any([shared, AbortSignal.timeout(22000)]);
       const data = await invoke(candidate, signal);
       return { data, model: candidate.label };
-    } catch (e) { error = e; }
+     } catch (e) {
+      error = e;
+      console.error('Deen Guide model attempt failed:', candidate.label, e.name, e.status || '', e.message);
+    }
   }
   return { error: error || new Error('AI review timed out'), cancelled: !!clientSignal?.aborted };
 }
@@ -835,7 +838,14 @@ messages.splice(
           : geminiKey && process.env.GEMINI_MODEL
             ? await callGemini(process.env.GEMINI_MODEL,geminiKey,reviewPrompt,reviewMessages,signal)
             : await callGroq(process.env.GROQ_FAST_MODEL || 'openai/gpt-oss-20b',groqKey,reviewMessages,reviewPrompt,signal);
-        if (review.choices[0].message.content.trim() !== 'PASS') throw new Error('Evidence review rejected answer');
+        const verdict = review.choices[0].message.content
+          .trim()
+          .toUpperCase()
+          .replace(/[*`]/g, '')
+          .trim();
+        if (!/^PASS[.!]?$/.test(verdict)) {
+          throw new Error('Evidence review rejected answer');
+        }
         return draft;
       },
       req.signal
