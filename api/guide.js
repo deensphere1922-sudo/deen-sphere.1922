@@ -344,6 +344,45 @@ function toGeminiContents(messages) {
   return contents;
 }
 
+async function getQuranEvidence(surahNumber) {
+  try {
+    const number = Number(surahNumber);
+
+    if (!Number.isInteger(number) ||
+        number < 1 || number > 114) {
+      return [];
+    }
+
+    const base = (
+      process.env.QURAN_API_URL ||
+      'https://quranenc.com/api/v1'
+    ).replace(/\/$/, '');
+
+    const response = await fetch(
+      `${base}/translation/sura/english_saheeh/${number}`,
+      {
+        signal: AbortSignal.timeout(10000)
+      }
+    );
+
+    if (!response.ok) return [];
+
+    const data = await response.json();
+
+    return (Array.isArray(data.result)
+      ? data.result : []).map(verse => ({
+        surah: Number(verse.sura),
+        ayah: Number(verse.aya),
+        translation: verse.translation,
+        url: `https://quran.com/${verse.sura}/${verse.aya}`
+      }));
+
+  } catch (error) {
+    console.error('Quran retrieval failed:', error);
+    return [];
+  }
+}
+
 async function callGemini(model, apiKey, systemPrompt, messages, signal) {
   const contents = toGeminiContents(messages);
   const body = {
