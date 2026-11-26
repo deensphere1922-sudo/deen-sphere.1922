@@ -5182,7 +5182,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
             if (verse) _applyVerseHighlight(surahNum, verse);
             const next = timings.find(t => t.start > cur);
             if (!next) return;
-            const delay = Math.max(20, (next.start - cur) * 1000 / (a.playbackRate || 1));
+            const delay = Math.max(4, (next.start - cur) * 1000 / (a.playbackRate || 1));
             a.__verseTimer = setTimeout(() => {
               // Re-read media time: buffering, seeking and timer throttling must never advance the verse early.
               _scheduleVerseHighlight(a, surahNum);
@@ -5190,35 +5190,27 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
           }
 
           function _applyVerseHighlight(surahNum, verseNow) {
-            if (S.screen === 'quran-reader' && S.arg === surahNum) {
-              let activeVerseEl = null;
-              document.querySelectorAll('.card[data-verse-num]').forEach(card => {
-                const cardVerse = parseInt(card.dataset.verseNum, 10);
-                if (cardVerse === verseNow) {
-                  card.classList.add('verse-playing');
-                  activeVerseEl = card;
-                } else {
-                  card.classList.remove('verse-playing');
-                  if (card.dataset.scrolledFor) delete card.dataset.scrolledFor;
-                }
-              });
-
-              if (activeVerseEl && activeVerseEl.dataset.scrolledFor !== String(verseNow)) {
+            if (S.screen === 'quran-reader' && Number(S.arg) === Number(surahNum)) {
+              const activeVerseEl = document.querySelector(`.card[data-verse-num="${verseNow}"]`);
+              // Only change the DOM on an actual verse transition or reader re-render.
+              if (activeVerseEl && (!activeVerseEl.classList.contains('verse-playing') || activeVerseEl.dataset.scrolledFor !== String(verseNow))) {
+                document.querySelectorAll('.card[data-verse-num].verse-playing').forEach(card => {
+                  if (card !== activeVerseEl) {
+                    card.classList.remove('verse-playing');
+                    delete card.dataset.scrolledFor;
+                  }
+                });
+                activeVerseEl.classList.add('verse-playing');
                 activeVerseEl.dataset.scrolledFor = String(verseNow);
                 _autoScrolling = true;
-                requestAnimationFrame(() => {
-                  if (!activeVerseEl.isConnected || S.screen !== 'quran-reader' || S.arg !== surahNum || !activeVerseEl.classList.contains('verse-playing')) {
-                    _autoScrolling = false;
-                    return;
-                  }
-                  const header = document.querySelector('.quran-reader-sticky-head');
-                  const topbar = document.querySelector('.topbar');
-                  const stickyBottom = Math.max(0, header?.getBoundingClientRect().bottom || 0, topbar?.getBoundingClientRect().bottom || 0);
-                  activeVerseEl.style.scrollMarginTop = `${stickyBottom + 16}px`;
-                  activeVerseEl.scrollIntoView({ block: 'start', inline: 'nearest', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
-                  clearTimeout(window.__autoScrollTimer);
-                  window.__autoScrollTimer = setTimeout(() => { _autoScrolling = false; }, 1000);
-                });
+                const header = document.querySelector('.quran-reader-sticky-head');
+                const topbar = document.querySelector('.topbar');
+                const stickyBottom = Math.max(0, header?.getBoundingClientRect().bottom || 0, topbar?.getBoundingClientRect().bottom || 0);
+                activeVerseEl.style.scrollMarginTop = `${stickyBottom + 16}px`;
+                // Immediate movement, not a smooth animation that can lag short verses.
+                activeVerseEl.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'instant' });
+                clearTimeout(window.__autoScrollTimer);
+                window.__autoScrollTimer = setTimeout(() => { _autoScrolling = false; }, 150);
               }
             }
 
@@ -5411,12 +5403,30 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
               if (_isPlayingFullSurah && _currentSurahNum && dur > 0) {
                 const verseNow = _estimateVerseFromTime(_currentSurahNum, cur, dur);
                 if (verseNow) _applyVerseHighlight(_currentSurahNum, verseNow);
+                else if (S.screen === 'quran-reader' && Number(S.arg) === Number(_currentSurahNum)) {
+                  document.querySelectorAll('.card[data-verse-num].verse-playing').forEach(card => {
+                    card.classList.remove('verse-playing');
+                    delete card.dataset.scrolledFor;
+                  });
+                  _abSetSub('Yasser Al-Dosari');
+                }
               }
             };
+            const stopFrame = () => {
+              if (a.__verseFrame != null) cancelAnimationFrame(a.__verseFrame);
+              a.__verseFrame = null;
+            };
             const tick = () => {
-              if (_qAudio !== a) return;
+              a.__verseFrame = null;
+              if (_qAudio !== a || a.paused || a.ended) return;
               updateUI();
-              if (!a.paused) requestAnimationFrame(tick);
+              a.__verseFrame = requestAnimationFrame(tick);
+            };
+            const startFrame = () => {
+              if (_qAudio === a && !a.paused && !a.ended && a.__verseFrame == null) {
+                updateUI();
+                a.__verseFrame = requestAnimationFrame(tick);
+              }
             };
 
             a.addEventListener('loadedmetadata', () => {
@@ -5431,6 +5441,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
             a.addEventListener('timeupdate', updateUI);
 
                     a.addEventListener('play', () => {
+              if (_qAudio !== a) return;
               try { a.playbackRate = _playbackRate; } catch (e) { }
               if (_isPlayingFullSurah && _qAudio === a) {
                 _fullSurahPointerFrozen = false;
@@ -5439,14 +5450,21 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
               if (_qAudioBtn) _qAudioBtn.innerHTML = _qPlayBtnHTML(true);
               _abSyncStatus(true);
               _syncMiniPillLabel();
-              requestAnimationFrame(tick);
+              startFrame();
               // Arm the precise verse-boundary scheduler.
               if (_isPlayingFullSurah && _currentSurahNum) {
                 _scheduleVerseHighlight(a, _currentSurahNum);
               }
             });
 
+            a.addEventListener('playing', () => {
+              if (_qAudio !== a) return;
+              startFrame();
+              if (_isPlayingFullSurah && _currentSurahNum) _scheduleVerseHighlight(a, _currentSurahNum);
+            });
+
             a.addEventListener('seeking', () => {
+              if (_qAudio !== a) return;
               if (_isPlayingFullSurah && _currentSurahNum) {
                 const dur = a.duration && isFinite(a.duration) ? a.duration : 0;
                 if (dur > 0) {
@@ -5458,12 +5476,16 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
             });
 
             a.addEventListener('seeked', () => {
+              if (_qAudio !== a) return;
+              updateUI();
               if (_isPlayingFullSurah && _currentSurahNum) {
                 _scheduleVerseHighlight(a, _currentSurahNum);
               }
             });
 
                     a.addEventListener('pause', () => {
+              stopFrame();
+              if (_qAudio !== a) return;
               // Kill the pending verse-transition timer — nothing should fire
               // while the player is paused.
               clearTimeout(a.__verseTimer);
@@ -5479,6 +5501,9 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
             });
 
             a.addEventListener('ended', () => {
+              stopFrame();
+              clearTimeout(a.__verseTimer);
+              if (_qAudio !== a) return;
               _abSetPlaying(false);
               _abSetProgressUI(0, 0, 0);
               _hideMiniPill();
@@ -5833,33 +5858,17 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
           }
 
           function _estimateVerseFromTime(surahNum, currentTime, duration) {
-            if (!duration || !isFinite(duration) || duration <= 0) return null;
-            const meta = SURAHS.find(x => x.num === surahNum);
-            if (!meta) return null;
             const timings = _verseTimingsCache[surahNum];
-            if (timings && timings.length) {
-              for (let i = 0; i < timings.length; i++) {
-                if (
-                  currentTime >= timings[i].start &&
-                  currentTime < timings[i].end
-                ) {
-                  return timings[i].verse;
-                }
-              }
-              let previousVerse = null;
-              for (let i = 0; i < timings.length; i++) {
-                if (currentTime >= timings[i].start) {
-                  previousVerse = timings[i].verse;
-                } else {
-                  break;
-                }
-              }
-              if (previousVerse !== null) {
-                return previousVerse;
-              }
-              return timings[0].verse || 1;
+            if (!timings?.length || !Number.isFinite(currentTime)) return null;
+            // The latest verse START is authoritative. End times can overlap
+            // with the next verse and must never keep the old card highlighted.
+            let lo = 0, hi = timings.length - 1, active = -1;
+            while (lo <= hi) {
+              const mid = (lo + hi) >>> 1;
+              if (timings[mid].start <= currentTime) { active = mid; lo = mid + 1; }
+              else hi = mid - 1;
             }
-            return null;
+            return active < 0 ? null : timings[active].verse;
           }
 
           function _tryPlayVerse(btnEl, primaryUrl, reciterName, fallbackUrl) {
