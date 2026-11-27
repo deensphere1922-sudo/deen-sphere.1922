@@ -3,7 +3,7 @@
   
   const MAX_QUERY_LENGTH = 1000;
   const MAX_SOURCES = 12;
-  const MIN_RELEVANCE_SCORE = 0.24;
+  const MIN_RELEVANCE_SCORE = 0.08;
   
   // Search only primary English Qur'an/Hadith sources for English questions.
   // Only Quran.com and Sunnah.com are permitted.
@@ -189,6 +189,23 @@ function classifySource(url) {
     return values.find(value => !/^(?:0+(?:\.0+)?)(?:\s*(?:ms|s|sec|seconds?))?$/i.test(value.trim())) || values[0] || null;
   }
   
+
+  async function hydrateHadith(source) {
+    const u = new URL(source.url);
+    if (u.hostname !== 'sunnah.com' && u.hostname !== 'www.sunnah.com') return source;
+    if (!/^\/[a-z0-9-]+(?::\d+[a-z]?|\/\d+\/\d+)\/?$/i.test(u.pathname)) return source;
+    const plain = value => value.replace(/<[^>]*>/g,' ').replace(/&(?:nbsp|amp|quot|#39|lt|gt);/g, x=>({'&nbsp;':' ','&amp;':'&','&quot;':'"','&#39;':"'",'&lt;':'<','&gt;':'>'}[x])).replace(/\s+/g,' ').trim();
+    try {
+      const response = await fetch(u.href, {redirect:'error',signal:AbortSignal.timeout(2500)});
+      if (!response.ok) return source;
+      const html = await response.text();
+      const text = [...html.matchAll(/<div\b[^>]*class=["'][^"']*\btext_details\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/gi)].map(m=>plain(m[1])).filter(Boolean);
+      if (text.length !== 1 || text[0].length < 30) return source;
+      const grade = /class=["'][^"']*\bgrade\b[^"']*["'][^>]*>([\s\S]*?)<\/(?:td|div|span)>/i.exec(html);
+      return {...source,content:text[0],evidenceQuality:'page_excerpt',grade:grade?plain(grade[1]):null};
+    } catch { return source; }
+  }
+
   export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
     if (!await requireUser(req,res)) return;
@@ -285,19 +302,20 @@ function classifySource(url) {
           if (!result || typeof result.url !== 'string' || typeof result.content !== 'string' || !isTrustedUrl(result.url, group.domains)) continue;
           const url = new URL(result.url);
           const title = typeof result.title === 'string' && result.title.trim() ? result.title.trim().slice(0, 250) : url.hostname;
-        const content = [result.content, result.raw_content].filter(Boolean).join("\n").slice(0, 12000);
+        const raw = typeof result.raw_content === "string" ? result.raw_content.trim() : "";
+          const content = (raw || result.content).slice(0, 24000);
           if (group.type === 'Qur’an evidence' && !isEnglishQuranUrl(url)) continue;
           if (!looksEnglish(`${title} ${content}`)) continue;
           const providerScore = typeof result.score === 'number' ? result.score : 0;
           const relevance = calculateRelevance(topic, title, content, providerScore);
-          if (relevance < MIN_RELEVANCE_SCORE) continue;
-          candidates.push({ title, url: url.href, content, sourceType: classifySource(url.href), evidenceQuality: result.raw_content ? "page_excerpt" : "search_snippet", score: relevance });
+          if (relevance < MIN_RELEVANCE_SCORE && providerScore < 0.35 && !raw) continue;
+          candidates.push({ title, url: url.href, content, sourceType: classifySource(url.href), evidenceQuality: raw ? "page_excerpt" : "search_snippet", score: relevance });
         }
       }
   
   
     // SERPER BACKUP WEB SEARCH
-  if (candidates.length === 0) {
+  if (sourceGroups.some(g => !candidates.some(c => c.sourceType === g.type && c.evidenceQuality === "page_excerpt"))) {
     const serperKey = process.env.SERPER_API_KEY?.trim();
   
     if (serperKey) {
@@ -357,7 +375,7 @@ function classifySource(url) {
               0
             );
   
-            if (score < MIN_RELEVANCE_SCORE) continue;
+            if (score < MIN_RELEVANCE_SCORE && !/\d/.test(url.pathname)) continue;
   
             candidates.push({
               title,
@@ -385,7 +403,7 @@ function classifySource(url) {
   const seenTitles = new Set();
   
   const unique = candidates
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => Number(b.evidenceQuality === "page_excerpt") - Number(a.evidenceQuality === "page_excerpt") || b.score - a.score)
     .filter(source => {
       const url = new URL(source.url);
   
@@ -419,14 +437,14 @@ function classifySource(url) {
   
       const results = [];
       for (const group of sourceGroups) {
-        results.push(...unique.filter(source => source.sourceType === group.type).sort((a, b) => b.score - a.score).slice(0, group.limit));
+        results.push(...unique.filter(source => source.sourceType === group.type).sort((a,b)=>Number(b.evidenceQuality==='page_excerpt')-Number(a.evidenceQuality==='page_excerpt')||b.score-a.score).slice(0, group.limit));
       }
     const buckets = sourceGroups.map(group => results.filter(s => s.sourceType === group.type));
     const balanced = [];
     for (let i=0;i<4;i++) for (const bucket of buckets) if (bucket[i]) balanced.push(bucket[i]);
-    const finalResults = balanced
+    const finalResults = await Promise.all(balanced
     .slice(0, MAX_SOURCES)
-    .map(({ score, ...source }) => source);
+    .map(({ score, ...source }) => hydrateHadith(source)));
   
   return res.status(200).json({
     results: finalResults,
