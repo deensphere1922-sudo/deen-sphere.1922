@@ -18476,9 +18476,12 @@ if (menuAttachButton && fileInput) {
 }
 if (webSearchToggle) {
   webSearchToggle.onclick = () => {
-    setGuideWebSearchEnabled(!guideWebSearchEnabled);
+    if (guideWebSearchEnabled) return;
+    if (pendingAttachments.length > 0) return;
+
+    setGuideWebSearchEnabled(true);
     closeGuidePlusMenu();
-    if (guideWebSearchEnabled && inp) inp.focus();
+    if (inp) inp.focus();
   };
 }
 if (fileInput) {
