@@ -265,7 +265,7 @@ export default async function handler(req, res) {
           } catch {}
         }
 
-        if (hitExact(14 * 60 + 44) && allowed('quran')) {
+        if (hitExact(20 * 60) && allowed('quran')) {
           await send({ title: "📖 Qur'an Reminder", body: "A moment with the Qur'an brings peace." }, `quran-${today}`);
         }
 
