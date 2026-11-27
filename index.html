@@ -17298,42 +17298,70 @@ ISLAMIC EVIDENCE AND ACCURACY:
 
   let nodeIndex = 0;
   let charIndex = 0;
+  let revealedChars = 0;
+  const totalChars = nodes.reduce((sum, n) => sum + n.textContent.length, 0);
+  const typingStartedAt = performance.now();
+  let typingTimer = null;
+  let typingFinished = false;
 
-  const typingTimer = window.setInterval(() => {
-    let remaining = 3;
+  const cleanupTyping = () => {
+    window.clearInterval(typingTimer);
+    document.removeEventListener('visibilitychange', syncTyping);
+    window.removeEventListener('focus', syncTyping);
+  };
+
+  const syncTyping = () => {
+    if (typingFinished) return;
+    if (!div.isConnected) {
+      typingFinished = true;
+      cleanupTyping();
+      return;
+    }
+
+    const target = Math.min(totalChars,
+      Math.floor((performance.now() - typingStartedAt) / 25) * 3);
+
+    if (target >= totalChars) {
+      typingFinished = true;
+      cleanupTyping();
+      div.innerHTML = formattedHtml;
+      div.style.paddingBottom = '12px';
+      setupTaskControls();
+      scrollThread();
+      return;
+    }
+
+    let remaining = target - revealedChars;
+    if (remaining <= 0) return;
+    let lastNode = null;
+    let lastOffset = 0;
 
     while (remaining > 0 && nodeIndex < nodes.length) {
       const current = nodes[nodeIndex];
-
-      const count = Math.min(
-        remaining,
-        current.textContent.length - charIndex
-      );
-
+      const count = Math.min(remaining, current.textContent.length - charIndex);
       charIndex += count;
       remaining -= count;
-
-      const range = document.createRange();
-      range.setStart(template, 0);
-      range.setEnd(current, charIndex);
-
-      div.replaceChildren(range.cloneContents());
-
+      revealedChars += count;
+      lastNode = current;
+      lastOffset = charIndex;
       if (charIndex >= current.textContent.length) {
         nodeIndex++;
         charIndex = 0;
       }
     }
 
-    if (nodeIndex >= nodes.length) {
-      window.clearInterval(typingTimer);
-      div.innerHTML = formattedHtml;
-      div.style.paddingBottom = '12px';
-      setupTaskControls();
+    if (lastNode) {
+      const range = document.createRange();
+      range.setStart(template, 0);
+      range.setEnd(lastNode, lastOffset);
+      div.replaceChildren(range.cloneContents());
+      scrollThread();
     }
+  };
 
-    scrollThread();
-  }, 25);
+  typingTimer = window.setInterval(syncTyping, 25);
+  document.addEventListener('visibilitychange', syncTyping);
+  window.addEventListener('focus', syncTyping);
 
 } else {
   setupTaskControls();
@@ -18193,7 +18221,6 @@ const toggleGuideRecording = async () => {
                     if (requestVersion === guideRequestVersion && S.guideThinking) showGuideStage(guideNormalStages, 1);
                   }, 650)
                 : null;
-              await new Promise(resolve => window.requestAnimationFrame(resolve));
               if (requestVersion !== guideRequestVersion) return;
 
               try {
