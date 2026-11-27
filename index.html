@@ -5249,9 +5249,15 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
               const visualVerse = _qAudio && _isPlayingFullSurah && Number(_currentSurahNum) === Number(surahNum)
                 ? (_estimateVerseFromTime(surahNum, _quranHighlightTime(_qAudio), _qAudio.duration) || verseNow)
                 : verseNow;
-              const activeVerseEl = document.querySelector(`.card[data-verse-num="${Number(visualVerse)}"]`);
+              const previous = _qAudio?.__highlightCard;
+              const activeVerseEl = previous?.isConnected && Number(previous.dataset.verseNum) === Number(visualVerse) && _qAudio?.__highlightSurah === Number(surahNum)
+                ? previous : document.querySelector(`.card[data-verse-num="${Number(visualVerse)}"]`);
+              if (_qAudio) {
+                _qAudio.__highlightCard = activeVerseEl;
+                _qAudio.__highlightSurah = Number(surahNum);
+              }
               // Only change cards at an actual Ayah boundary, including after a reader re-render.
-              document.querySelectorAll('.card[data-verse-num].verse-playing').forEach(card => {
+              if (previous !== activeVerseEl || !activeVerseEl?.classList.contains('verse-playing')) document.querySelectorAll('.card[data-verse-num].verse-playing').forEach(card => {
                 if (card !== activeVerseEl) {
                   card.classList.remove('verse-playing');
                   delete card.dataset.scrolledFor;
@@ -5264,7 +5270,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
               if (activeVerseEl && activeVerseEl.dataset.scrolledFor !== String(visualVerse)) {
                 activeVerseEl.dataset.scrolledFor = String(visualVerse);
                 _autoScrolling = true;
-                (() => {
+                requestAnimationFrame(() => {
                   if (!activeVerseEl.isConnected || S.screen !== 'quran-reader' || Number(S.arg) !== Number(surahNum) || !activeVerseEl.classList.contains('verse-playing')) {
                     _autoScrolling = false;
                     return;
@@ -5276,11 +5282,14 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
                   activeVerseEl.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'instant' });
                   clearTimeout(window.__autoScrollTimer);
                   window.__autoScrollTimer = setTimeout(() => { _autoScrolling = false; }, 1000);
-                })();
+                });
               }
             }
 
-            _abSetSub('Yasser Al-Dosari \u2014 Verse ' + verseNow);
+            if (!_qAudio || _qAudio.__displayedVerse !== verseNow) {
+              _abSetSub('Yasser Al-Dosari \u2014 Verse ' + verseNow);
+              if (_qAudio) _qAudio.__displayedVerse = verseNow;
+            }
 
             if (S.quranProgress?.surah !== surahNum || S.quranProgress?.verse !== verseNow) {
               if (!_fullSurahOwnsPointer) return;
@@ -5455,13 +5464,13 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
           function _attachAudio(a, onEnded) {
             try { a.playbackRate = _playbackRate; } catch (e) { }
 
-            const updateUI = () => {
+            let lastBarPaint = -Infinity;
+            const updateUI = (force = true) => {
               if (_qAudio !== a) return;
               if (_isSeeking) return;
               const dur = a.duration && isFinite(a.duration) ? a.duration : 0;
               const cur = a.currentTime || 0;
               const pct = dur ? (cur / dur) * 100 : 0;
-              _abSetProgressUI(cur, dur, pct);
 
                         // Verse highlight is driven by _scheduleVerseHighlight (precise setTimeout),
               // NOT by timeupdate. Here we only repaint the current verse so a fresh
@@ -5470,12 +5479,17 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
                 const verseNow = _estimateVerseFromTime(_currentSurahNum, cur, dur);
                 if (verseNow) _applyVerseHighlight(_currentSurahNum, verseNow);
               }
+              const now = performance.now();
+              if (force || now - lastBarPaint >= 80) {
+                _abSetProgressUI(cur, dur, pct);
+                lastBarPaint = now;
+              }
             };
             let frameId = null;
             const tick = () => {
               frameId = null;
               if (_qAudio !== a || a.paused || a.ended) return;
-              updateUI();
+              updateUI(false);
               frameId = requestAnimationFrame(tick);
             };
             const startFrameSync = () => {
