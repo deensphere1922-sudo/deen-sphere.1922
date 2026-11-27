@@ -91,7 +91,7 @@ async function getAladhanTimings(lat, lng, tzName, calcMethod, asrMethod, localD
     dhuhr: timeStringToMinutes(timings.Dhuhr),
     asr: timeStringToMinutes(timings.Asr),
     maghrib: timeStringToMinutes(timings.Maghrib),
-  isha: (timeStringToMinutes(timings.Isha) + 1) % 1440
+    isha: timeStringToMinutes(timings.Isha)
   };
   if(timingsCache.size>=500) timingsCache.clear(); timingsCache.set(url,result); return result;
 }
