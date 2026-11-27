@@ -663,6 +663,7 @@ body {
             border-color: rgba(30, 138, 95, 0.4) !important; border-left: 3px solid var(--green-l);
             box-shadow: 0 2px 8px rgba(30, 138, 95, 0.06);
           }
+          .card[data-verse-num], .card[data-verse-num] .tag-green { transition: none !important; }
           .card.verse-playing .tag-green { background: var(--green); color: #fff; }
           .card-el { background: var(--card-el); border: 1px solid var(--border); border-radius: var(--r-md); }
 
@@ -5217,6 +5218,13 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
           // boundary. Uses setTimeout armed from currentTime, so it does
           // NOT depend on the browser's ~250ms timeupdate cadence.
           // ============================================================
+          // Visual-only calibration for the reported ~200ms late highlight.
+          const QURAN_HIGHLIGHT_LEAD_MS = 200;
+          function _quranHighlightTime(a) {
+            const current = a.currentTime || 0;
+            return current + (!a.paused && !a.seeking && !a.ended && a.readyState >= 3
+              ? QURAN_HIGHLIGHT_LEAD_MS / 1000 * (a.playbackRate || 1) : 0);
+          }
           function _scheduleVerseHighlight(a, surahNum) {
             if (!a) return;
             clearTimeout(a.__verseTimer);
@@ -5227,9 +5235,9 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
             const cur = a.currentTime || 0;
             const verse = _estimateVerseFromTime(surahNum, cur, a.duration);
             if (verse) _applyVerseHighlight(surahNum, verse);
-            const next = timings.find(t => t.start > cur);
+            const next = timings.find(t => t.start > _quranHighlightTime(a));
             if (!next) return;
-            const delay = Math.max(4, (next.start - cur) * 1000 / (a.playbackRate || 1));
+            const delay = Math.max(4, (next.start - _quranHighlightTime(a)) * 1000 / (a.playbackRate || 1));
             a.__verseTimer = setTimeout(() => {
               // Re-read media time: buffering, seeking and timer throttling must never advance the verse early.
               _scheduleVerseHighlight(a, surahNum);
@@ -5238,7 +5246,10 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
 
           function _applyVerseHighlight(surahNum, verseNow) {
             if (S.screen === 'quran-reader' && Number(S.arg) === Number(surahNum)) {
-              const activeVerseEl = document.querySelector(`.card[data-verse-num="${Number(verseNow)}"]`);
+              const visualVerse = _qAudio && _isPlayingFullSurah && Number(_currentSurahNum) === Number(surahNum)
+                ? (_estimateVerseFromTime(surahNum, _quranHighlightTime(_qAudio), _qAudio.duration) || verseNow)
+                : verseNow;
+              const activeVerseEl = document.querySelector(`.card[data-verse-num="${Number(visualVerse)}"]`);
               // Only change cards at an actual Ayah boundary, including after a reader re-render.
               document.querySelectorAll('.card[data-verse-num].verse-playing').forEach(card => {
                 if (card !== activeVerseEl) {
@@ -5250,8 +5261,8 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
                 activeVerseEl.classList.add('verse-playing');
               }
 
-              if (activeVerseEl && activeVerseEl.dataset.scrolledFor !== String(verseNow)) {
-                activeVerseEl.dataset.scrolledFor = String(verseNow);
+              if (activeVerseEl && activeVerseEl.dataset.scrolledFor !== String(visualVerse)) {
+                activeVerseEl.dataset.scrolledFor = String(visualVerse);
                 _autoScrolling = true;
                 (() => {
                   if (!activeVerseEl.isConnected || S.screen !== 'quran-reader' || Number(S.arg) !== Number(surahNum) || !activeVerseEl.classList.contains('verse-playing')) {
@@ -5544,6 +5555,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
               if (_isPlayingFullSurah && _qAudio === a && !_fullSurahPointerFrozen) {
                 _freezeFullSurahPointer();
               }
+              if (_isPlayingFullSurah && _currentSurahNum) updateUI();
               _abSetPlaying(false);
               if (_qAudioBtn) _qAudioBtn.innerHTML = _qPlayBtnHTML(false);
               _abSyncStatus(false);
