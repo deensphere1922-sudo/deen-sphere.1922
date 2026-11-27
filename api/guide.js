@@ -606,10 +606,21 @@ function compactEvidence(direct, sources, question, overviewChapter, fullChapter
   evidence.coverage.complete=isCompleteChapter(evidence.direct.quran,overviewChapter);
   return evidence;
 }
+function explicitlyDetailed(question) {
+  return /\b(?:in detail|detailed|full|complete|whole|entire|step by step|elaborate|expand|tell me more|explain fully|explain more|all (?:stories|benefits|virtues))\b/i.test(question);
+}
+function responseBudget(question, webMode) {
+  const detailed = explicitlyDetailed(question);
+  return webMode ? {words:detailed?750:420, units:detailed?32:22, tokens:detailed?2400:1600} : detailed ? {words:650,units:28,tokens:2000} : {words:110,units:8,tokens:650};
+}
 function buildPrompt(evidence, overviewChapter, withLinks, webMode, namedChapter=overviewChapter, question='') {
-  const mode = webMode ? 'WEB: explain the requested aspect in useful detail, usually 120–280 words. Use a few short independent paragraphs or bullets; no more than six substantive sections. Prefer strongest evidence, including Hadith where relevant.' : 'NORMAL: no more than eight short sentences, usually 35–90 words; fewer for a definition. No long essays or unnecessary headings.';
+  const detailed=explicitlyDetailed(question);
+  const mode = webMode
+    ? `WEB: provide a clear, sufficiently detailed explanation of the exact question, ${detailed?'up to 650 words when useful':'usually 120–350 words, fewer for simple definitions'}. Cover the requested aspects fully within available evidence. Use short independent paragraphs or bullets. The server displays at most six distinct supporting references. Prefer a small number of strong directly relevant sources, not a citation quota.`
+    : detailed ? 'NORMAL: the user explicitly requested detail; provide a full explanation, up to 550 words when useful. No visible citations or URLs.'
+    : 'NORMAL: answer in at most eight short sentences, normally five to eight or fewer for simple definitions. No unnecessary headings or visible references.';
   const focus = namedChapter ? `Requested Surah: ${SURAH_NAMES[namedChapter-1]} (${namedChapter}). Bare name or meaning: brief introduction only. Stories: explain requested narratives only. Benefits: only supported virtues or clearly labelled thematic lessons, with authenticated Hadith when relevant. Do not drift to other Surahs. ${evidence.coverage.complete?'Full translation available.':'Evidence may be incomplete; omit unsupported specifics.'}` : 'Answer the exact Islamic topic, not unrelated topics. For a mixed request answer only its Islamic part.';
-  return `${DEEN_GUIDE_MANDATORY_SCOPE}\n${mode}\n${focus}\nUse one independently understandable claim or small claim group per paragraph or bullet so unsupported parts can be removed without losing the whole answer. Do not cite evidence IDs in prose. Prefer paraphrases over quotations. Evidence: ${serializeEvidence(evidence)}`;
+  return `${DEEN_GUIDE_MANDATORY_SCOPE}\n${mode}\n${focus}\nDo not force Hadith, Quran, Tafsir, virtues, stories, lessons or additional topics into an answer. Include a source type only when it directly supports the requested claim. For a virtue question, distinguish a supported narration and its grade from a thematic lesson. For stories, cover the requested narrative without inventing details. Use one independently understandable claim or small claim group per paragraph or bullet so unsupported parts can be removed without losing the whole answer. Do not cite evidence IDs in prose. Prefer paraphrases over quotations. Evidence: ${serializeEvidence(evidence)}`;
 }
 
 function evidenceIndex(evidence) {
@@ -1331,6 +1342,7 @@ messages.splice(
   const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;
 
+  const budget = responseBudget(question, webMode);
   const candidates = [];
   if (geminiKey) {
     // All four support text and image input through Gemini's multimodal API.
@@ -1339,7 +1351,7 @@ messages.splice(
       candidates.push({
         label: `Google ${model}`,
         evidence: expanded,
-        run: (signal, prompt = expandedPrompt, input = modelMessages) => callGemini(model, geminiKey, prompt, input, signal, webMode ? 1600 : 650)
+        run: (signal, prompt = expandedPrompt, input = modelMessages) => callGemini(model, geminiKey, prompt, input, signal, budget.tokens)
       });
     }
   }
@@ -1351,7 +1363,7 @@ messages.splice(
     candidates.push({
       label: `Groq ${model}`,
       evidence: compact,
-      run: (signal, prompt = compactPrompt, input = modelMessages) => callGroq(model, groqKey, input, prompt, signal, webMode ? 1600 : 650)
+      run: (signal, prompt = compactPrompt, input = modelMessages) => callGroq(model, groqKey, input, prompt, signal, budget.tokens)
     });
   }
 
@@ -1371,7 +1383,7 @@ messages.splice(
           error.code = 'EVIDENCE_REJECTED';
           return error;
         };
-        const reviewPrompt = `Audit each numbered unit against the question and evidence. Return JSON only: {"audit":[{"id":1,"status":"supported","sources":["Q3:19"]}],"issues":[]}. Give every unit exactly one status. supported: every claim is relevant and supported by actual evidence, with all necessary valid IDs (Qchapter:verse, HdatabaseID, S1 etc for page excerpts only). nonfactual: structural heading or honest limitation, no sources. app: factual answer about known app navigation only, no sources. general: cautious, independently understandable, basic Islamic educational explanation (no precise scriptural claims, rulings, grades, rewards, historical specifics or quotations); no sources. unsupported: inaccurate, off-topic, speculative, unsupported precise detail, or unsafe; no sources. A valid Islamic question without evidence is not off-topic. Do not approve unrelated questions or unrelated evidence. For an exact Surah, keep the requested aspect only. Never infer Hadith grading from a website domain alone. Do not demand full chapter coverage for a definition. Preserve the exact conditions and grading of virtues. For Al-Kahf, do not invent the name of a ruler or claim both men owned gardens; distinguish produce loss from total wealth loss. Evidence: ${serializeEvidence(evidence)}`;
+        const reviewPrompt = `Audit each numbered unit against the question and evidence. Return JSON only: {"audit":[{"id":1,"status":"supported","sources":["Q3:19"]}],"issues":[]}. Give every unit exactly one status. Cite the smallest sufficient set of directly supporting evidence IDs per unit; reuse relevant IDs where appropriate. In web mode aim for no more than six distinct source URLs across the answer. Never add a Hadith or Quran reference merely for variety. supported: every claim is relevant and supported by actual evidence, with all necessary valid IDs (Qchapter:verse, HdatabaseID, S1 etc for page excerpts only). nonfactual: structural heading or honest limitation, no sources. app: factual answer about known app navigation only, no sources. general: cautious, independently understandable, basic Islamic educational explanation (no precise scriptural claims, rulings, grades, rewards, historical specifics or quotations); no sources. unsupported: inaccurate, off-topic, speculative, unsupported precise detail, or unsafe; no sources. A valid Islamic question without evidence is not off-topic. Do not approve unrelated questions or unrelated evidence. For an exact Surah, keep the requested aspect only. Never infer Hadith grading from a website domain alone. Do not demand full chapter coverage for a definition. Preserve the exact conditions and grading of virtues. For Al-Kahf, do not invent the name of a ruler or claim both men owned gardens; distinguish produce loss from total wealth loss. Evidence: ${serializeEvidence(evidence)}`;
         async function reviewAnswer(answer) {
           const units=reviewUnits(answer);
           const reviewMessages=[{role:'user',content:JSON.stringify({question:retrievalQuestion,units})}];
@@ -1407,8 +1419,7 @@ messages.splice(
             if(webMode && (!refs.length || refs.length!==row.sources.length)) {omitted=true;continue;}
             if(webMode && new Set([...sourceMap.keys(),...refs.map(r=>r.url)]).size>6) {omitted=true;continue;}
             const words=unit.text.split(/\s+/).length;
-            if(!webMode && (allowed.length>=8 || wordCount+words>100)) continue;
-            if(webMode && wordCount+words>350) continue;
+            if(allowed.length>=budget.units || wordCount+words>budget.words) {omitted=true;continue;}
             allowed.push(unit.text); wordCount+=words;
             for(const ref of refs) if(!sourceMap.has(ref.url)) sourceMap.set(ref.url,ref);
           }
@@ -1417,14 +1428,13 @@ messages.splice(
           let content=allowed.join(webMode?'\n\n':' ');
           if(!content && general.length) {
             let count=0; const brief=[];
-            for(const unit of general.slice(0,webMode?6:7)) {const n=unit.split(/\s+/).length;if(count+n>(webMode?250:85)) break;brief.push(unit);count+=n;}
+            for(const unit of general.slice(0,budget.units)) {const n=unit.split(/\s+/).length;if(count+n>budget.words) break;brief.push(unit);count+=n;}
             if(brief.length) content=brief.join(' ')+'\n\nGeneral educational explanation; sources could not be verified for this answer.';
           }
           if(!content) return null;
           if(allowed.length && (omitted || audit.audit.some(r=>r.status==='unsupported'||r.status==='general'))) content+='\n\nOnly the supported details are included here.';
           const refs=[...sourceMap.values()];
-          const hadith=refs.filter(r=>/hadith/i.test(r.sourceType));
-          const selected=[...hadith.slice(0,2),...refs].filter((r,i,a)=>a.findIndex(x=>x.url===r.url)===i).slice(0,6);
+          const selected=refs.slice(0,6);
           return {...draft,sources:webMode?selected:[],choices:[{...draft.choices[0],message:{...draft.choices[0].message,content}}]};
         };
         let draft=await candidate.run(signal);
