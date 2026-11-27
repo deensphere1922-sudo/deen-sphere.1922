@@ -16667,16 +16667,8 @@ ISLAMIC EVIDENCE AND ACCURACY:
           const renderGuideSources = (sources, answerText) => {
             if (!Array.isArray(sources) || !sources.length) return '';
 
-            // Show cited sources when inline citations exist. If the AI omits
-            // citation markers, fall back to all valid sources from web search.
-            const citedNumbers = [...new Set(
-              [...String(answerText || '').matchAll(/\[(\d+)\]/g)]
-                .map(match => Number(match[1]))
-                .filter(number => Number.isSafeInteger(number) && number > 0 && number <= sources.length)
-            )];
-            const sourceNumbers = citedNumbers.length
-              ? citedNumbers
-              : sources.map((source, index) => index + 1);
+            // Sources are approved and ordered by the server, not inferred from prose.
+            const sourceNumbers = sources.slice(0, 6).map((_, index) => index + 1);
 
             const seenUrls = new Set();
             // Keep the original source index for citation lookup, but show a
@@ -18113,7 +18105,6 @@ const toggleGuideRecording = async () => {
               if (requestVersion !== guideRequestVersion) return;
 
               try {
-                const forcedInstruction = '\n\nAnswer the current question directly. Follow the requested level of detail.';
                 const history = S.guideMsgs
                   .filter(message => !message.requestError)
                   .slice(-10)
@@ -18122,7 +18113,6 @@ const toggleGuideRecording = async () => {
                     if (message.documentText) {
                       content += `\n\nExtracted text from the attached PDF:\n${message.documentText}`;
                     }
-                    if (message === userMessage) content += forcedInstruction;
                     if (message === userMessage && modelImages.length) {
                       return {
                         role: message.role,
@@ -18134,70 +18124,19 @@ const toggleGuideRecording = async () => {
                     }
                     return { role: message.role, content };
                   });
-                let requestHistory = history;
-                let requestSystemPrompt = GUIDE_SYSTEM_PROMPT;
+                // Retrieval and evidence review happen once, inside the authenticated guide API.
+                // Do not fail the chat when an optional search endpoint is unavailable.
                 if (wantsResearch) {
-                  // Advance only while the corresponding search work is actually running.
                   activeStageIndex = 1;
                   showGuideStage(activeGuideStages, activeStageIndex);
-                  const sourceProgressTimer = window.setTimeout(() => {
-                    showGuideStage(activeGuideStages, 2);
-                  }, 900);
-                  let searchResult;
-                  try {
-                    searchResult = await postGuideJson(
-                      '/api/search',
-                      { query: text },
-                      controller.signal
-                    );
-                  } finally {
-                    window.clearTimeout(sourceProgressTimer);
-                  }
-                  const {
-                    response: searchResponse,
-                    data: searchData,
-                    retryAfter: searchRetryAfter
-                  } = searchResult;
-                  if (requestVersion !== guideRequestVersion) return;
-                  if (!searchResponse.ok || searchData.error) {
-                    const error = new Error(searchData.error || `Source search failed (${searchResponse.status}).`);
-                    error.status = searchResponse.status;
-                    error.retryAfter = searchRetryAfter;
-                    throw error;
-                  }
-                  const seenSourceUrls = new Set();
-                  researchSources = (Array.isArray(searchData.results) ? searchData.results : [])
-                    .filter(source => source && typeof source.url === 'string' && typeof source.content === 'string')
-                    .filter(source => {
-                      try {
-                        const url = new URL(source.url);
-                        if ((url.protocol !== 'https:' && url.protocol !== 'http:') || seenSourceUrls.has(url.href)) return false;
-                        seenSourceUrls.add(url.href);
-                        return true;
-                      } catch {
-                        return false;
-                      }
-                    })
-                    .slice(0, 5);
-                  activeStageIndex = 3;
-                  showGuideStage(activeGuideStages, activeStageIndex);
-                  await new Promise(resolve => window.requestAnimationFrame(resolve));
-                  if (requestVersion !== guideRequestVersion) return;
-                  const sourceExcerpts = researchSources.length
-                    ? researchSources.map((source, index) =>
-                        `[${index + 1}] Type: ${source.sourceType || 'Islamic source'}\\n${source.title || source.url}\\nURL: ${(() => { try { return normalizeGuideSourceUrl(source.url).href; } catch { return source.url; } })()}\\nExcerpt: ${source.content.slice(0, 1600)}`
-                      ).join('\\n\\n')
-                    : 'No relevant external web sources were returned for this query. Answer the user’s general question carefully using established knowledge, do not invent citations or Qur’an/Hadith references, and briefly disclose that no web sources were found.';
-                  requestHistory = history.slice();
-                  requestSystemPrompt += GUIDE_WEB_RESEARCH_PROMPT;
                 }
                 activeStageIndex = activeGuideStages.length - 1;
                 showGuideStage(activeGuideStages, activeStageIndex);
                 const { response, data, retryAfter } = await postGuideJson(
                   '/api/guide',
                   {
-                    systemPrompt: requestSystemPrompt,
-                    messages: requestHistory,
+                    messages: history,
+                    question: text,
                     research: wantsResearch,
                     hasAttachments: attachments.length > 0
                   },
