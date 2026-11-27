@@ -616,11 +616,11 @@ function responseBudget(question, webMode) {
 function buildPrompt(evidence, overviewChapter, withLinks, webMode, namedChapter=overviewChapter, question='') {
   const detailed=explicitlyDetailed(question);
   const mode = webMode
-    ? `WEB: provide a clear, sufficiently detailed explanation of the exact question, ${detailed?'up to 650 words when useful':'usually 120–350 words, fewer for simple definitions'}. Cover the requested aspects fully within available evidence. Use short independent paragraphs or bullets. The server displays at most six distinct supporting references. Prefer a small number of strong directly relevant sources, not a citation quota.`
+    ? `WEB: provide a clear, sufficiently detailed explanation of the exact question, ${detailed?'up to 650 words when useful':'usually 120–350 words, fewer for simple definitions'}. Cover the requested aspects fully within available evidence. Write a single coherent natural paragraph by default, including for Surah introductions, stories and virtues. Use complete sentences; no headings or bullets unless expressly requested. Put references only in the separate server-generated Sources section. The server displays at most six distinct supporting references. Prefer a small number of strong directly relevant sources, not a citation quota.`
     : detailed ? 'NORMAL: the user explicitly requested detail; provide a full explanation, up to 550 words when useful. No visible citations or URLs.'
     : 'NORMAL: answer in at most eight short sentences, normally five to eight or fewer for simple definitions. No unnecessary headings or visible references.';
   const focus = namedChapter ? `Requested Surah: ${SURAH_NAMES[namedChapter-1]} (${namedChapter}). Bare name or meaning: brief introduction only. Stories: explain requested narratives only. Benefits: only supported virtues or clearly labelled thematic lessons, with authenticated Hadith when relevant. Do not drift to other Surahs. ${evidence.coverage.complete?'Full translation available.':'Evidence may be incomplete; omit unsupported specifics.'}` : 'Answer the exact Islamic topic, not unrelated topics. For a mixed request answer only its Islamic part.';
-  return `${DEEN_GUIDE_MANDATORY_SCOPE}\n${mode}\n${focus}\nDo not force Hadith, Quran, Tafsir, virtues, stories, lessons or additional topics into an answer. Include a source type only when it directly supports the requested claim. For a virtue question, distinguish a supported narration and its grade from a thematic lesson. For stories, cover the requested narrative without inventing details. Use one independently understandable claim or small claim group per paragraph or bullet so unsupported parts can be removed without losing the whole answer. Do not cite evidence IDs in prose. Prefer paraphrases over quotations. Evidence: ${serializeEvidence(evidence)}`;
+  return `${DEEN_GUIDE_MANDATORY_SCOPE}\n${mode}\n${focus}\nDo not force Hadith, Quran, Tafsir, virtues, stories, lessons or additional topics into an answer. Include a source type only when it directly supports the requested claim. For a virtue question, distinguish a supported narration and its grade from a thematic lesson. For stories, cover the requested narrative without inventing details. Write a single coherent paragraph of independently understandable complete sentences, with explicit subjects where needed. Do not use stock verification commentary such as "Only the supported details are included here." If a material point is uncertain, state that specific uncertainty naturally in context; never imply certainty that is not justified. Do not cite evidence IDs in prose. Prefer paraphrases over quotations. Evidence: ${serializeEvidence(evidence)}`;
 }
 
 function evidenceIndex(evidence) {
@@ -1069,6 +1069,7 @@ function formatApprovedAnswer(answer,evidence,withLinks) {
   answer = answer.replace(/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/gm, '').trim();
   answer = answer.replace(/\\[ \t]*$/gm, '').trim();
   answer = normalizeQuranReferences(answer, evidence);
+  answer = answer.replace(/(?:^|\n|(?<=[.!?])\s+)(?:Only the supported details are included here\.|Only verified details are included here\.)\s*/gi, ' ').trim();
   if (!withLinks) return answer
     .replace(/^\s*(?:#{1,6}\s*)?(?:\*\*|__)?(?:sources|references|citations|bibliography)(?:\*\*|__)?\s*:?\s*(?:\*\*|__)?\s*$/im, '\u0000')
     .split('\u0000')[0]
@@ -1425,14 +1426,16 @@ messages.splice(
           }
           // Only use general educational material when no verified claim survived.
           // It is separately reviewed, clearly labelled and never given citations.
-          let content=allowed.join(webMode?'\n\n':' ');
+          let content=allowed.join(' ');
           if(!content && general.length) {
             let count=0; const brief=[];
             for(const unit of general.slice(0,budget.units)) {const n=unit.split(/\s+/).length;if(count+n>budget.words) break;brief.push(unit);count+=n;}
             if(brief.length) content=brief.join(' ')+'\n\nGeneral educational explanation; sources could not be verified for this answer.';
           }
           if(!content) return null;
-          if(allowed.length && (omitted || audit.audit.some(r=>r.status==='unsupported'||r.status==='general'))) content+='\n\nOnly the supported details are included here.';
+          // Keep the reviewed prose clean; no generic verification footer.
+          // If a requested detail is missing, disclose that specifically instead of implying completeness.
+          if (allowed.length && omitted && explicitlyDetailed(question)) content += ' I could not verify every requested detail.';
           const refs=[...sourceMap.values()];
           const selected=refs.slice(0,6);
           return {...draft,sources:webMode?selected:[],choices:[{...draft.choices[0],message:{...draft.choices[0].message,content}}]};
