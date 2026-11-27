@@ -5245,6 +5245,18 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
           }
 
           function _applyVerseHighlight(surahNum, verseNow) {
+            // Follow the playing Surah only when its highlighted Ayah changes.
+            const followAudio = _qAudio;
+            if (followAudio && _isPlayingFullSurah && Number(_currentSurahNum) === Number(surahNum)) {
+              const followVerse = _estimateVerseFromTime(surahNum, _quranHighlightTime(followAudio), followAudio.duration) || verseNow;
+              const previousFollowVerse = followAudio.__readerFollowVerse;
+              followAudio.__readerFollowVerse = followVerse;
+              if (previousFollowVerse != null && previousFollowVerse !== followVerse &&
+                  !followAudio.paused && !followAudio.ended && !followAudio.seeking &&
+                  S.screen === 'quran-reader' && Number(S.arg) !== Number(surahNum)) {
+                go('quran-reader', Number(surahNum));
+              }
+            }
             if (S.screen === 'quran-reader' && Number(S.arg) === Number(surahNum)) {
               const visualVerse = _qAudio && _isPlayingFullSurah && Number(_currentSurahNum) === Number(surahNum)
                 ? (_estimateVerseFromTime(surahNum, _quranHighlightTime(_qAudio), _qAudio.duration) || verseNow)
@@ -12010,6 +12022,7 @@ function _calculateQuranReadStats(targetDateStr) {
       }
 
         function paintQuranSurah(num, data, meta) {
+        if (S.screen !== 'quran-reader' || Number(S.arg) !== Number(num)) return;
         const container = $('.content');
         if (!container) return;
 
