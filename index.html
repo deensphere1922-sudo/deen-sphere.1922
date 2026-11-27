@@ -18028,12 +18028,15 @@ const toggleGuideRecording = async () => {
               }
             };
 
-            const send = async (forcedText) => {
+           const send = async (
+  forcedText,
+  selectedWebMode = guideWebSearchEnabled
+) => {
               if (S.guideThinking) return;
               const inp = $('#guide-input');
               const text = (forcedText || (inp ? inp.value : '')).trim();
               const attachments = pendingAttachments.slice();
-              const wantsResearch = guideWebSearchEnabled;
+            const wantsResearch = selectedWebMode === true;
               const activeGuideStages = wantsResearch
                 ? guideWebStages
                 : guideNormalStages;
@@ -18251,8 +18254,12 @@ const toggleGuideRecording = async () => {
                   <button class="btn-text guide-suggestion" data-guide-chip="How to pray Tahajjud?" style="display:block;width:100%;text-align:center;color:var(--green-l);">• How to pray Tahajjud?</button>
                   <button class="btn-text guide-suggestion" data-guide-chip="What does the Quran say about patience?" style="display:block;width:100%;text-align:center;color:var(--green-l);">• What does the Quran say about patience?</button>
                 </div>`;
-                thread.querySelectorAll('[data-guide-chip]').forEach(chip =>
-                  chip.onclick = () => send(chip.dataset.guideChip));
+              thread.querySelectorAll('[data-guide-chip]').forEach(chip => {
+  chip.onclick = () => send(
+    chip.dataset.guideChip,
+    guideWebSearchEnabled
+  );
+});
               }
 
               const clearButton = $('#guide-clear');
@@ -18336,7 +18343,12 @@ if (micButton) {
 }
 
 
-            $$('[data-guide-chip]').forEach(c => c.onclick = () => send(c.dataset.guideChip));
+          $$('[data-guide-chip]').forEach(c => {
+  c.onclick = () => send(
+    c.dataset.guideChip,
+    guideWebSearchEnabled
+  );
+});
 
             const clearBtn = $('#guide-clear');
             if (clearBtn) clearBtn.onclick = clearChat;
