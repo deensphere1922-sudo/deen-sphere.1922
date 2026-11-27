@@ -796,6 +796,13 @@ function reviewedResult(answer,units,audit,records,question,webMode,chapter,part
   return {...makeOpenAIResponse(out.trim()),sources};
 }
 
+// Final-answer presentation only: preserve Markdown and avoid duplicate salawat.
+function addProphetSalawat(text) {
+  if (typeof text !== 'string') return text;
+  const pattern = /\b(Prophet[ \t]+(?:\*\*|__)?Mu[hḥ]\p{M}*a\p{M}*mm?ad\p{M}*)(?![\p{L}\p{M}])((?:\*\*|__)?)(?:[ \t]*(?:\([ \t]*(?:ﷺ|SAW|PBUH|peace be upon him|sallallahu alayhi wa sallam)[ \t]*\)|ﷺ|\b(?:SAW|PBUH)\b|peace be upon him|sallallahu alayhi wa sallam))*/giu;
+  return text.replace(pattern, (_, name, closing) => `${name}${closing} ﷺ`);
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (!await requireUser(req,res)) return;
@@ -1049,6 +1056,8 @@ ${webMode?`REFERENCE PLAN IS REQUIRED: after auditing, read the final answer as 
         error: 'A reliable answer could not be produced or reviewed. Please try again shortly.'
       });
     }
+    const message = result.data?.choices?.[0]?.message;
+    if (typeof message?.content === 'string') message.content = addProphetSalawat(message.content);
     return res.status(200).json(result.data);
   } catch (error) {
     console.error('Deen Guide multi-model request failed:', error);
