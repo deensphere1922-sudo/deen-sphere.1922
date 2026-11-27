@@ -4838,7 +4838,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
       dhuhr: formatTime(date, dhuhrHours),
       asr: formatTime(date, asrHours),
       maghrib: formatTime(date, maghribHours),
-      isha: formatTime(date, ishaHours)
+     isha: formatTime(date, ishaHours + 1 / 60)
     };
   }
 
