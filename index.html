@@ -17296,8 +17296,84 @@ ISLAMIC EVIDENCE AND ACCURACY:
   div.innerHTML = '';
   div.style.paddingBottom = '12px';
 
-  let nodeIndex = 0;
-  let charIndex = 0;
+ let nodeIndex = 0;
+let charIndex = 0;
+let typingTimer = null;
+let typingFinished = false;
+
+const finishTyping = () => {
+  if (typingFinished) return;
+  typingFinished = true;
+
+  window.clearInterval(typingTimer);
+
+  document.removeEventListener(
+    'visibilitychange', handleVisibility
+  );
+
+  window.removeEventListener('blur', finishTyping);
+
+  div.innerHTML = formattedHtml;
+  div.style.paddingBottom = '12px';
+
+  setupTaskControls();
+  scrollThread();
+};
+
+const handleVisibility = () => {
+  if (document.hidden) finishTyping();
+};
+
+document.addEventListener(
+  'visibilitychange', handleVisibility
+);
+
+window.addEventListener('blur', finishTyping);
+
+if (document.hidden || !document.hasFocus()) {
+  finishTyping();
+} else {
+  typingTimer = window.setInterval(() => {
+
+    if (!div.isConnected) {
+      finishTyping();
+      return;
+    }
+
+    let remaining = 3;
+
+    while (remaining > 0 && nodeIndex < nodes.length) {
+      const current = nodes[nodeIndex];
+
+      const count = Math.min(
+        remaining,
+        current.textContent.length - charIndex
+      );
+
+      charIndex += count;
+      remaining -= count;
+
+      const range = document.createRange();
+      range.setStart(template, 0);
+      range.setEnd(current, charIndex);
+
+      div.replaceChildren(range.cloneContents());
+
+      if (charIndex >= current.textContent.length) {
+        nodeIndex++;
+        charIndex = 0;
+      }
+    }
+
+    if (nodeIndex >= nodes.length) {
+      finishTyping();
+      return;
+    }
+
+    scrollThread();
+
+  }, 25);
+}
 
   const typingTimer = window.setInterval(() => {
     let remaining = 3;
@@ -18193,7 +18269,7 @@ const toggleGuideRecording = async () => {
                     if (requestVersion === guideRequestVersion && S.guideThinking) showGuideStage(guideNormalStages, 1);
                   }, 650)
                 : null;
-              await new Promise(resolve => window.requestAnimationFrame(resolve));
+            
               if (requestVersion !== guideRequestVersion) return;
 
               try {
