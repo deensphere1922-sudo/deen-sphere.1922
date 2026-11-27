@@ -106,57 +106,19 @@
     }
     // Treat broad Islam/Qur'an/Hadith questions as valid general searches.
     // If the user typed a misspelling, normalizeWord corrects it before this check.
-    const meaningful = terms.filter(word => !['routine', 'daily', 'schedule', 'plan','mean','meaning','means','definition','what','is','explain'].includes(word));
+    const meaningful = terms.filter(word => !['routine', 'daily', 'schedule', 'plan'].includes(word));
     const broad = meaningful.length === 1 && ['islam', 'quran', 'hadith'].includes(meaningful[0]);
     const topic = broad ? meaningful[0] : (terms.join(' ') || String(question).trim());
     return { topic, terms: broad ? meaningful : terms, broad };
   }
   
-const SURAH_NAMES = 'Al-Fatihah|Al-Baqarah|Al-Imran|An-Nisa|Al-Maidah|Al-Anam|Al-Araf|Al-Anfal|At-Tawbah|Yunus|Hud|Yusuf|Ar-Rad|Ibrahim|Al-Hijr|An-Nahl|Al-Isra|Al-Kahf|Maryam|Ta-Ha|Al-Anbiya|Al-Hajj|Al-Muminun|An-Nur|Al-Furqan|Ash-Shuara|An-Naml|Al-Qasas|Al-Ankabut|Ar-Rum|Luqman|As-Sajdah|Al-Ahzab|Saba|Fatir|Ya-Sin|As-Saffat|Sad|Az-Zumar|Ghafir|Fussilat|Ash-Shura|Az-Zukhruf|Ad-Dukhan|Al-Jathiyah|Al-Ahqaf|Muhammad|Al-Fath|Al-Hujurat|Qaf|Adh-Dhariyat|At-Tur|An-Najm|Al-Qamar|Ar-Rahman|Al-Waqiah|Al-Hadid|Al-Mujadilah|Al-Hashr|Al-Mumtahanah|As-Saff|Al-Jumuah|Al-Munafiqun|At-Taghabun|At-Talaq|At-Tahrim|Al-Mulk|Al-Qalam|Al-Haqqah|Al-Maarij|Nuh|Al-Jinn|Al-Muzzammil|Al-Muddaththir|Al-Qiyamah|Al-Insan|Al-Mursalat|An-Naba|An-Naziat|Abasa|At-Takwir|Al-Infitar|Al-Mutaffifin|Al-Inshiqaq|Al-Buruj|At-Tariq|Al-Ala|Al-Ghashiyah|Al-Fajr|Al-Balad|Ash-Shams|Al-Layl|Ad-Duha|Ash-Sharh|At-Tin|Al-Alaq|Al-Qadr|Al-Bayyinah|Az-Zalzalah|Al-Adiyat|Al-Qariah|At-Takathur|Al-Asr|Al-Humazah|Al-Fil|Quraysh|Al-Maun|Al-Kawthar|Al-Kafirun|An-Nasr|Al-Masad|Al-Ikhlas|Al-Falaq|An-Nas'.split('|');
-function requestedChapter(question) {
-  const explicit = question.match(/\b(?:surah|sura|chapter)\s+(\d{1,3})\b/i);
-  if (explicit && +explicit[1]>=1 && +explicit[1]<=114) return +explicit[1];
-  const clean = s => s.toLowerCase().normalize('NFKD').replace(/\p{M}/gu,'').replace(/[^a-z0-9]/g,'');
-  const m = question.match(/\b(?:surah|sura|chapter)\s+([\w’' -]+)/i);
-  const q = clean(m ? m[1] : question);
-  const aliases = SURAH_NAMES.flatMap((name,i)=> [[clean(name),i+1],[clean(name.replace(/^[^-]+-/,'')),i+1]]).concat([['yaseen',36],['yasin',36],['fatiha',1],['baqara',2]]).sort((a,b)=>b[0].length-a[0].length);
-  return aliases.find(([alias])=>alias && (q===alias || (m && q.startsWith(alias))))?.[1] || null;
-}
-function exactVersePath(url) {
-  if (!/^(?:www\.)?quran\.com$/.test(url.hostname)) return null;
-  const p = url.pathname.replace(/^\/en(?=\/)/,'');
-  const m = p.match(/^\/(\d{1,3})[/:](\d{1,3})\/?$/);
-  return m ? {chapter:+m[1],verse:+m[2]} : null;
-}
-function relevantSource(url, chapter, strictChapter) {
-  if (/(?:^|\/)(?:search|search-results|tag|tags)(?:\/|$)/i.test(url.pathname)) return false;
-  if (!strictChapter) return true;
-  const v = exactVersePath(url);
-  if (v) return v.chapter===chapter;
-  if (!/^(?:www\.)?quran\.com$/.test(url.hostname)) return false;
-  const p = url.pathname.replace(/^\/en(?=\/)/,'');
-  const m = p.match(/^\/(\d{1,3})(?:\/|:|$)/);
-  const slug = p.split('/').filter(Boolean)[0];
-  return m ? +m[1]===chapter : slug===SURAH_NAMES[chapter-1]?.toLowerCase();
-}
-async function directVerseResults(chapter, wanted) {
-  try {
-    const base=(process.env.QURAN_API_URL || 'https://quranenc.com/api/v1').replace(/\/$/,'');
-    const response=await fetch(`${base}/translation/sura/english_saheeh/${chapter}`,{signal:AbortSignal.timeout(6500)});
-    if(!response.ok) return [];
-    const data=await response.json();
-    const rows=Array.isArray(data.result)?data.result:[];
-    return rows.filter(v=>+v.sura===chapter && wanted.includes(+v.aya) && typeof v.translation==='string' && v.translation.trim()).map(v=>({title:`Surah ${SURAH_NAMES[chapter-1]} — ${chapter}:${+v.aya}`,url:`https://quran.com/${chapter}/${+v.aya}`,content:v.translation,sourceType:'Qur’an evidence',evidenceQuality:'page_excerpt',score:1}));
-  } catch { return []; }
-}
-
   function calculateRelevance(topic, title, content, providerScore) {
     const terms = topic.terms || [];
     if (!terms.length) return Math.max(0, Math.min(providerScore, 1));
     const titleTerms = new Set(tokenize(title));
     const contentTerms = new Set(tokenize(content));
     const matched = terms.filter(term => titleTerms.has(term) || contentTerms.has(term));
-    if (!matched.length) return 0;
+    if (!matched.length) return topic.broad ? Math.min(Math.max(providerScore, 0), 1) * 0.60 : 0;
     const coverage = new Set(matched).size / terms.length;
     const titleCoverage = terms.filter(term => titleTerms.has(term)).length / terms.length;
     const contentCoverage = terms.filter(term => contentTerms.has(term)).length / terms.length;
@@ -208,24 +170,6 @@ async function directVerseResults(chapter, wanted) {
     return '';
   }
   
-
-function selectContext(raw, snippet, topic, limit=12000) {
-  const page=typeof raw==='string'?raw.trim():'';
-  const lead=typeof snippet==='string'?snippet.trim():'';
-  if(!page) return {content:lead.slice(0,limit),evidenceQuality:'search_snippet'};
-  // Contiguous window near matching terms; retain adjacent context.
-  const terms=topic.terms||[];
-  const windows=[];
-  for(let i=0;i<page.length && i<120000;i+=2400){
-    const text=page.slice(i,i+4800);
-    const words=new Set(tokenize(text));
-    windows.push({i,score:terms.filter(t=>words.has(t)).length});
-  }
-  windows.sort((a,b)=>b.score-a.score||a.i-b.i);
-  const start=Math.max(0,(windows[0]?.i||0)-1200);
-  return {content:page.slice(start,start+limit),evidenceQuality:'page_excerpt'};
-}
-
 function classifySource(url) {
   const u = new URL(url);
   if (/(^|\.)quran\.com$/.test(u.hostname) && /\/tafsirs?(?:\/|$)/i.test(u.pathname)) return 'Tafsir evidence';
@@ -248,34 +192,18 @@ function classifySource(url) {
   export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
     if (!await requireUser(req,res)) return;
-    const query = getQuestion(await getRequestBody(req));
-    if (query.length < 2 || query.length > MAX_QUERY_LENGTH) return res.status(400).json({error:'Invalid search question length.'});
-    return res.status(200).json(await searchIslamicEvidence(query));
-  }
-
-  // Only called by the authenticated guide or search handlers.
-  export async function searchIslamicEvidence(query) {
     try {
-      query = String(query || '').trim().slice(0, MAX_QUERY_LENGTH);
-      if (!query) return {results:[],total:0,researchUnavailable:true};
+      const body = await getRequestBody(req);
+      const query = getQuestion(body);
+      if (query.length < 2 || query.length > MAX_QUERY_LENGTH)
+        return res.status(400).json({ error: `Enter a search question between 2 and ${MAX_QUERY_LENGTH} characters.` });
+  
       const topic = getTopic(query);
-      const chapter = requestedChapter(query);
-      const strictChapter = !!chapter && !/\b(?:compare|comparison|versus|vs|hadith|hadeeth|virtues?|benefits?|rewards?|friday|jummah|jumuah|protection|dajjal)\b/i.test(query);
-      const islamDefinition = topic.broad && topic.topic === 'islam';
-      // Short definition questions get direct scripture rather than generic search pages.
-      if (islamDefinition) {
-        const verses = await directVerseResults(3,[19,20]);
-        if (verses.length) return {results:verses.map(({score,...v})=>v),total:verses.length,researchUnavailable:false};
-      }
-      const virtueQuery = /\b(?:benefits?|virtues?|rewards?|friday|jummah|jumuah|protection|dajjal)\b/i.test(query);
-      const searchQuestion = islamDefinition ? 'What does Islam mean as submission to Allah? Quran 3:19 and 3:20' : query.replace(/\btahajud\b/gi,'tahajjud').replace(/\btawakul\b/gi,'tawakkul');
-      const wantsTafsir = /\b(?:tafsir|commentary|historical|context|revelation)\b/i.test(query);
-      const activeGroups = sourceGroups.filter(g => (!strictChapter || g.type !== 'Hadith evidence') && (wantsTafsir || g.type !== 'Tafsir evidence'));
   
     const apiKey = process.env.TAVILY_API_KEY?.trim();
   
   const responses = await Promise.allSettled(
-   (apiKey ? activeGroups : []).map(async group => {
+   (apiKey ? sourceGroups : []).map(async group => {
       for (let attempt = 0; attempt < 1; attempt++) {
         try {
           const response = await fetch(
@@ -287,7 +215,7 @@ function classifySource(url) {
                 Authorization: `Bearer ${apiKey.trim()}`
               },
               body: JSON.stringify({
-                query: group.query(searchQuestion, topic.topic).slice(0, 390),
+                query: group.query(query, topic.topic).slice(0, 390),
                 search_depth: 'advanced',
                 max_results: group.limit,
                 include_domains: group.domains,
@@ -322,14 +250,9 @@ function classifySource(url) {
   );
   
   const candidates = [];
-  const requestedRefs=[...query.matchAll(/\b(\d{1,3}):(\d{1,3})\b/g)];
-  if (requestedRefs.length) {
-    const chapters=[...new Set(requestedRefs.map(m=>+m[1]))].filter(n=>n>=1&&n<=114).slice(0,3);
-    candidates.push(...(await Promise.all(chapters.map(n=>directVerseResults(n,requestedRefs.filter(m=>+m[1]===n).map(m=>+m[2]))))).flat());
-  }
   let successfulSearches = 0;
       for (let index = 0; index < responses.length; index++) {
-      const group = activeGroups[index];
+      const group = sourceGroups[index];
   const settled = responses[index];
   
   if (settled.status === 'rejected') {
@@ -360,27 +283,26 @@ function classifySource(url) {
         for (const result of Array.isArray(data.results) ? data.results : []) {
           if (!result || typeof result.url !== 'string' || typeof result.content !== 'string' || !isTrustedUrl(result.url, group.domains)) continue;
           const url = new URL(result.url);
-          if (!relevantSource(url, chapter, strictChapter)) continue;
           const title = typeof result.title === 'string' && result.title.trim() ? result.title.trim().slice(0, 250) : url.hostname;
-        const {content,evidenceQuality} = selectContext(result.raw_content,result.content,topic);
-          if (/(^|\.)quran\.com$/.test(url.hostname) && !isEnglishQuranUrl(url)) continue;
+        const content = [result.content, result.raw_content].filter(Boolean).join("\n").slice(0, 12000);
+          if (group.type === 'Qur’an evidence' && !isEnglishQuranUrl(url)) continue;
           if (!looksEnglish(`${title} ${content}`)) continue;
           const providerScore = typeof result.score === 'number' ? result.score : 0;
           const relevance = calculateRelevance(topic, title, content, providerScore);
           if (relevance < MIN_RELEVANCE_SCORE) continue;
-          candidates.push({ title, url: url.href, content, sourceType: classifySource(url.href), evidenceQuality, score: relevance });
+          candidates.push({ title, url: url.href, content, sourceType: classifySource(url.href), evidenceQuality: result.raw_content ? "page_excerpt" : "search_snippet", score: relevance });
         }
       }
   
   
     // SERPER BACKUP WEB SEARCH
-  if (candidates.length === 0 || !activeGroups.every(group=>candidates.some(c=>c.sourceType===group.type && c.evidenceQuality==='page_excerpt'))) {
+  if (candidates.length === 0) {
     const serperKey = process.env.SERPER_API_KEY?.trim();
   
     if (serperKey) {
       try {
         const domains = [
-          ...new Set(activeGroups.flatMap(group => group.domains))
+          ...new Set(sourceGroups.flatMap(group => group.domains))
         ];
   
         const siteFilter = domains
@@ -396,7 +318,7 @@ function classifySource(url) {
               'X-API-KEY': serperKey
             },
             body: JSON.stringify({
-              q: `${searchQuestion.slice(0, 300)} (${siteFilter})`,
+              q: `${query.slice(0, 300)} (${siteFilter})`,
               hl: 'en',
               num: 10
             }),
@@ -408,14 +330,13 @@ function classifySource(url) {
           const data = await response.json();
   
           for (const result of data.organic || []) {
-            const group = activeGroups.find(group =>
+            const group = sourceGroups.find(group =>
               isTrustedUrl(result.link, group.domains)
             );
   
             if (!group) continue;
   
             const url = new URL(result.link);
-            if (!relevantSource(url, chapter, strictChapter)) continue;
             const title = String(result.title || '').trim();
             const content = String(result.snippet || '')
               .replace(/<[^>]*>/g, '')
@@ -463,15 +384,15 @@ function classifySource(url) {
   const seenTitles = new Set();
   
   const unique = candidates
-    .sort((a, b) => Number(b.evidenceQuality==='page_excerpt')-Number(a.evidenceQuality==='page_excerpt') || b.score-a.score)
+    .sort((a, b) => b.score - a.score)
     .filter(source => {
       const url = new URL(source.url);
   
       url.hash = '';
       url.search = '';
   
-      const v = exactVersePath(url);
-      const urlKey = v ? `https://quran.com/${v.chapter}/${v.verse}` : url.href.replace(/\/$/, '');
+      const urlKey = url.href
+        .replace(/\/$/, '');
   
       const titleKey = String(source.title || '')
         .normalize('NFKC')
@@ -495,14 +416,30 @@ function classifySource(url) {
       return true;
     });
   
-      const ranked = virtueQuery ? [...unique.filter(x=>x.sourceType==='Hadith evidence'), ...unique.filter(x=>x.sourceType!=='Hadith evidence')] : unique;
-      const finalResults = ranked.slice(0, MAX_SOURCES).map(({ score, ...source }) => source);
-
-  return {results:finalResults,total:finalResults.length,researchUnavailable:finalResults.length===0};
+      const results = [];
+      for (const group of sourceGroups) {
+        results.push(...unique.filter(source => source.sourceType === group.type).sort((a, b) => b.score - a.score).slice(0, group.limit));
+      }
+    const buckets = sourceGroups.map(group => results.filter(s => s.sourceType === group.type));
+    const balanced = [];
+    for (let i=0;i<4;i++) for (const bucket of buckets) if (bucket[i]) balanced.push(bucket[i]);
+    const finalResults = balanced
+    .slice(0, MAX_SOURCES)
+    .map(({ score, ...source }) => source);
+  
+  return res.status(200).json({
+    results: finalResults,
+    total: finalResults.length,
+    researchUnavailable: finalResults.length === 0
+  });
   
   } catch (error) {
     console.error('Web search API error:', error);
   
-    return {results:[],total:0,researchUnavailable:true};
+    return res.status(200).json({
+      results: [],
+      total: 0,
+      researchUnavailable: true
+    });
   }
   }
