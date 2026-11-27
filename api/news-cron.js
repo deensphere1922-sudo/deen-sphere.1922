@@ -280,6 +280,21 @@ export default async function handler(req, res) {
           return Math.floor(now.getTime() / 60000) * 60000 + (dayOffset * 1440 + h * 60 + m - at) * 60000;
         };
 
+        if (
+  today === '2026-11-27' &&
+  tzName === 'Asia/Kolkata' &&
+  hitExact(14 * 60 + 40) &&
+  allowed('fajr')
+) {
+  await send({
+    title: '🕌 Fajr Prayer — TEST',
+    body: 'Testing real Fajr push notification.',
+    prayer: 'fajr',
+    kind: 'time',
+    targetTime: getTargetTime(875, localDate)
+  }, `fajr-test-1435-${today}`);
+}
+
         // FIVE PRAYERS (Using hitPrayer = 1 min late safety)
         if (hitPrayer(userMin.fajr) && allowed('fajr')) {
           await send({ title: '🕌 Fajr Prayer', body: 'Time for Fajr. Begin your day with prayer.', prayer: 'fajr', kind: 'time', targetTime: getTargetTime(userMin.fajr, localDate) }, `fajr-${today}`);
