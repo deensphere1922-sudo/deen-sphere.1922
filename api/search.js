@@ -256,13 +256,14 @@ function classifySource(url) {
   
       const topic = getTopic(query);
       const chapter = requestedChapter(query);
-      const strictChapter = !!chapter && !/\b(?:compare|comparison|versus|vs|hadith|hadeeth|virtues?|benefits?)\b/i.test(query);
+      const strictChapter = !!chapter && !/\b(?:compare|comparison|versus|vs|hadith|hadeeth|virtues?|benefits?|rewards?|friday|jummah|jumuah|protection|dajjal)\b/i.test(query);
       const islamDefinition = topic.broad && topic.topic === 'islam';
       // Short definition questions get direct scripture rather than generic search pages.
       if (islamDefinition) {
         const verses = await directVerseResults(3,[19,20]);
         if (verses.length) return res.status(200).json({results:verses.map(({score,...v})=>v),total:verses.length,researchUnavailable:false});
       }
+      const virtueQuery = /\b(?:benefits?|virtues?|rewards?|friday|jummah|jumuah|protection|dajjal)\b/i.test(query);
       const searchQuestion = islamDefinition ? 'What does Islam mean as submission to Allah? Quran 3:19 and 3:20' : query;
       const activeGroups = strictChapter ? sourceGroups.filter(g=>g.type !== 'Hadith evidence') : sourceGroups;
   
@@ -489,7 +490,8 @@ function classifySource(url) {
       return true;
     });
   
-      const finalResults = unique.slice(0, MAX_SOURCES).map(({ score, ...source }) => source);
+      const ranked = virtueQuery ? [...unique.filter(x=>x.sourceType==='Hadith evidence'), ...unique.filter(x=>x.sourceType!=='Hadith evidence')] : unique;
+      const finalResults = ranked.slice(0, MAX_SOURCES).map(({ score, ...source }) => source);
 
   return res.status(200).json({
     results: finalResults,
