@@ -432,12 +432,24 @@ function detectSurah(question) {
   return null;
 }
 
+// Retrieval hints for common themes, not pre-approved citations or answers.
+function topicVerseHints(question) {
+  if (detectSurah(question) || /\b\d{1,3}:\d{1,3}\b/.test(question)) return [];
+  const hints = [];
+  const add = (chapter, verses) => verses.forEach(ayah => hints.push({chapter, ayah}));
+  if (/\b(?:patien\w*|sabr)\b/i.test(question)) { add(2,[153,155,156,157]); add(39,[10]); add(13,[22,23,24]); }
+  if (/\b(?:forgiv\w*|repent\w*|tawba[h]?)\b/i.test(question)) { add(39,[53,54]); add(42,[40,43]); add(3,[134,135,136]); }
+  if (/\b(?:tahaj+ud|tahejjud|tahajjud|night prayer|qiyam)\b/i.test(question)) { add(17,[79]); add(73,[2,3,4,20]); }
+  return hints;
+}
+
 async function retrieveDirectEvidence(question, sources) {
   const surahNumbers = new Set();
   const hadithIds = new Set();
   const named = detectSurah(question);
   if (isIslamDefinition(question)) surahNumbers.add(3);
   if (named) surahNumbers.add(named);
+  for (const hint of topicVerseHints(question)) surahNumbers.add(hint.chapter);
 
   // Recognize explicit Quran references.
   for (const match of question.matchAll(/\b(\d{1,3}):\d{1,3}\b/g)) {
@@ -632,6 +644,7 @@ function reliableHadith(r){
 function evidenceForProvider(direct, sources, question, chapter, compact) {
   const quran=direct.quran;
   const preferred=new Set();
+  for(const hint of topicVerseHints(question)) for(const v of quran) if(v.surah===hint.chapter && v.ayah===hint.ayah) preferred.add(v);
   if(isIslamDefinition(question)) for(const v of quran) if(v.surah===3 && [19,20].includes(v.ayah)) preferred.add(v);
   for(const m of question.matchAll(/\b(\d{1,3}):(\d{1,3})(?:[-–](\d{1,3}))?/g)) for(const v of quran) if(v.surah===+m[1] && v.ayah>=+m[2] && v.ayah<=+(m[3]||m[2])) preferred.add(v);
   for(const source of sources) {
@@ -643,8 +656,12 @@ function evidenceForProvider(direct, sources, question, chapter, compact) {
   const keys=terms.filter(t=>!stop.has(t));
   if(!chapter && keys.length) quran.map(v=>({v,score:keys.filter(t=>v.translation.toLowerCase().includes(t)).length})).filter(x=>x.score).sort((a,b)=>b.score-a.score).slice(0,16).forEach(x=>preferred.add(x.v));
   if(quran.length){preferred.add(quran[0]);preferred.add(quran[quran.length-1]);}
-  if(quran.length) quran.forEach(v=>preferred.add(v));
-  else {const stride=Math.max(1,Math.floor(quran.length/24));for(let i=0;i<quran.length;i+=stride) preferred.add(quran[i]);}
+  if(chapter) quran.forEach(v=>preferred.add(v));
+  else {
+    const anchors=[...preferred];
+    for(const a of anchors) for(const v of quran) if(v.surah===a.surah && Math.abs(v.ayah-a.ayah)<=2) preferred.add(v);
+    if(preferred.size<=2) quran.slice(0,24).forEach(v=>preferred.add(v));
+  }
   const records=[];
   let used=0;
   const budget=compact?85000:180000;
@@ -1028,10 +1045,10 @@ ${webMode?`REFERENCE PLAN IS REQUIRED: after auditing, read the final answer as 
             if(!['islamic','app','mixed','unrelated'].includes(audit.scope))throw Error('Missing scope review');
             if(audit.scope==='unrelated')return {...makeOpenAIResponse(ISLAM_ONLY_REPLY),sources:[]};
             const full=reviewedResult(answer,units,audit,records,contextualQuestion,webMode,chapter,false,directEvidence.quran);
-            if(full)return full;
+            if(full && (!webMode || audit.scope==='app' || full.sources.length))return full;
             const partial=reviewedResult(answer,units,audit,records,contextualQuestion,webMode,chapter,true,directEvidence.quran);
-            if(partial&&(!bestPartial||partial.choices[0].message.content.length>bestPartial.choices[0].message.content.length))bestPartial=partial;
-            feedback='Revise the answer, retaining supported facts and removing or correcting unsupported claims. Do not shorten unnecessarily. Reviewer issues: '+JSON.stringify(audit.issues)+'; unsupported units: '+JSON.stringify(units.filter(u=>audit.rows.find(r=>r.id===u.id)?.status==='unsupported').map(u=>u.text)).slice(0,1800);
+            if(partial&&(!bestPartial||Number(partial.sources.length>0)>Number(bestPartial.sources.length>0)||(Number(partial.sources.length>0)===Number(bestPartial.sources.length>0)&&partial.choices[0].message.content.length>bestPartial.choices[0].message.content.length)))bestPartial=partial;
+            feedback='For a religious explanation, build the revised answer directly from the supplied Quran translations and verified narrations. Cite actual evidence IDs in the review, not in the answer body. Revise the answer, retaining supported facts and removing or correcting unsupported claims. Do not shorten unnecessarily. Reviewer issues: '+JSON.stringify(audit.issues)+'; unsupported units: '+JSON.stringify(units.filter(u=>audit.rows.find(r=>r.id===u.id)?.status==='unsupported').map(u=>u.text)).slice(0,1800);
           }catch(e){
             console.error('Deen Guide generation/review attempt failed:',e.message);
             if(signal.aborted||e.status===429){if(bestPartial)return bestPartial;throw e;}
