@@ -18217,9 +18217,12 @@ const toggleGuideRecording = async () => {
                   error.retryAfter = retryAfter;
                   throw error;
                 }
+                const out = data.choices?.[0]?.message?.content?.trim()
+                  || "I couldn't generate a response.";
+
                 researchSources = wantsResearch && Array.isArray(data.sources)
-  ? data.sources
-  : [];
+                  ? data.sources
+                  : [];
                 S.guideThinking = false;
                 S.guideThinkStage = '';
                 hideThinking();
