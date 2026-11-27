@@ -14348,7 +14348,7 @@ ${hasQuranReading ? `
               <!-- RIGHT: Routine -->
               <div style="min-width: 0;">
                 <div style="font-weight:700; font-size:${isMobile ? '11px' : '14px'}; color:var(--tx); margin-bottom:6px; white-space:nowrap;">Routine</div>
-                <div style="background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding: 0 8px; max-height: ${isMobile ? '150px' : '220px'}; overflow-y:auto;">
+             <div id="tracker-routine-scroll" style="background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding: 0 8px; max-height: ${isMobile ? '150px' : '220px'}; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; touch-action:pan-y; -webkit-overflow-scrolling:touch;">
                   ${routineHTML}
                 </div>
               </div>
@@ -20111,12 +20111,21 @@ transform: translateX(-50%);
       !!document.querySelector('#yt-player-overlay.show');
   }
 
+  function allowRoutineScroll(e) {
+    return e.target instanceof Element &&
+      !!e.target.closest('#tracker-day-modal #tracker-routine-scroll');
+  }
+
   document.addEventListener('wheel', function (e) {
-    if (popupOpen()) e.preventDefault();
+    if (popupOpen() && !allowRoutineScroll(e)) {
+      e.preventDefault();
+    }
   }, { capture: true, passive: false });
 
   document.addEventListener('touchmove', function (e) {
-    if (popupOpen()) e.preventDefault();
+    if (popupOpen() && !allowRoutineScroll(e)) {
+      e.preventDefault();
+    }
   }, { capture: true, passive: false });
 })();
 </script>
