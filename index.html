@@ -5245,7 +5245,8 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
           }
 
           function _applyVerseHighlight(surahNum, verseNow) {
-            if (S.screen === 'quran-reader' && Number(S.arg) === Number(surahNum)) {
+            if (S.screen === 'quran-reader' && Number(S.arg) === Number(surahNum) &&
+                Number(document.querySelector('.reciter-card[data-surah]')?.dataset.surah) === Number(surahNum)) {
               const visualVerse = _qAudio && _isPlayingFullSurah && Number(_currentSurahNum) === Number(surahNum)
                 ? (_estimateVerseFromTime(surahNum, _quranHighlightTime(_qAudio), _qAudio.duration) || verseNow)
                 : verseNow;
@@ -5738,8 +5739,10 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
 
 
           
-  const wholeBtn = document.querySelector('#play-whole-surah');
-  const mobileBtn = document.querySelector('#play-whole-surah-mobile');
+  const matchingReader = S.screen === 'quran-reader' && Number(S.arg) === Number(num) &&
+    Number(document.querySelector('.reciter-card[data-surah]')?.dataset.surah) === Number(num);
+  const wholeBtn = matchingReader ? document.querySelector('#play-whole-surah') : null;
+  const mobileBtn = matchingReader ? document.querySelector('#play-whole-surah-mobile') : null;
 
   const playSurahHTML =
     `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Play Surah`;
@@ -5784,7 +5787,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
 ) {
                   go('quran-reader', num + 1);
                   setTimeout(() => {
-                    _playSurahAudio(num + 1, true);
+                    if (!_qAudio && _autoPlayNextSurah) _playSurahAudio(num + 1, true);
                   }, 300);
                 } else {
                   _playSurahAudio(num + 1, true);
@@ -11860,9 +11863,7 @@ function _calculateQuranReadStats(targetDateStr) {
             if (grid.innerHTML !== newHTML) grid.innerHTML = newHTML;
           $$('[data-open]').forEach(b => b.onclick = async () => {
         const num = parseInt(b.dataset.open, 10);
-        // Pre-load the surah data BEFORE navigating, so the reader paints
-        // instantly with no loading card.
-        await prefetchQuranSurah(num);
+        // Commit the manually selected reader immediately; audio stays independent.
         go('quran-reader', num);
       });
           }
@@ -12010,6 +12011,8 @@ function _calculateQuranReadStats(targetDateStr) {
       }
 
         function paintQuranSurah(num, data, meta) {
+        // Ignore delayed rendering from a Surah the reader has left.
+        if (S.screen !== 'quran-reader' || Number(S.arg) !== Number(num)) return;
         const container = $('.content');
         if (!container) return;
 
