@@ -616,11 +616,11 @@ function responseBudget(question, webMode) {
 function buildPrompt(evidence, overviewChapter, withLinks, webMode, namedChapter=overviewChapter, question='') {
   const detailed=explicitlyDetailed(question);
   const mode = webMode
-    ? `WEB: provide a clear, sufficiently detailed explanation of the exact question, ${detailed?'up to 650 words when useful':'usually 120–350 words, fewer for simple definitions'}. Cover the requested aspects fully within available evidence. Write a single coherent natural paragraph by default, including for Surah introductions, stories and virtues. Use complete sentences; no headings or bullets unless expressly requested. Put references only in the separate server-generated Sources section. The server displays at most six distinct supporting references. Prefer a small number of strong directly relevant sources, not a citation quota.`
+    ? `WEB: provide a clear, sufficiently detailed explanation of the exact question, ${detailed?'up to 650 words when useful':'usually 120–350 words, fewer for simple definitions'}. Cover the requested aspects fully within available evidence. Use natural paragraphs. For full stories or detailed questions, use separate substantial paragraphs for each story or requested aspect; a one-sentence answer is insufficient when evidence supports more. For simple definitions, a single paragraph is appropriate. Use complete sentences. Put references only in the separate server-generated Sources section. The server displays at most six distinct supporting references. Prefer a small number of strong directly relevant sources, not a citation quota.`
     : detailed ? 'NORMAL: the user explicitly requested detail; provide a full explanation, up to 550 words when useful. No visible citations or URLs.'
     : 'NORMAL: answer in at most eight short sentences, normally five to eight or fewer for simple definitions. No unnecessary headings or visible references.';
   const focus = namedChapter ? `Requested Surah: ${SURAH_NAMES[namedChapter-1]} (${namedChapter}). Bare name or meaning: brief introduction only. Stories: explain requested narratives only. Benefits: only supported virtues or clearly labelled thematic lessons, with authenticated Hadith when relevant. Do not drift to other Surahs. ${evidence.coverage.complete?'Full translation available.':'Evidence may be incomplete; omit unsupported specifics.'}` : 'Answer the exact Islamic topic, not unrelated topics. For a mixed request answer only its Islamic part.';
-  return `${DEEN_GUIDE_MANDATORY_SCOPE}\n${mode}\n${focus}\nDo not force Hadith, Quran, Tafsir, virtues, stories, lessons or additional topics into an answer. Include a source type only when it directly supports the requested claim. For a virtue question, distinguish a supported narration and its grade from a thematic lesson. For stories, cover the requested narrative without inventing details. Write a single coherent paragraph of independently understandable complete sentences, with explicit subjects where needed. Do not use stock verification commentary such as "Only the supported details are included here." If a material point is uncertain, state that specific uncertainty naturally in context; never imply certainty that is not justified. Do not cite evidence IDs in prose. Prefer paraphrases over quotations. Evidence: ${serializeEvidence(evidence)}`;
+  return `${DEEN_GUIDE_MANDATORY_SCOPE}\n${mode}\n${focus}\nDo not force Hadith, Quran, Tafsir, virtues, stories, lessons or additional topics into an answer. Include a source type only when it directly supports the requested claim. For a virtue question, distinguish a supported narration and its grade from a thematic lesson. For stories, cover the requested narrative without inventing details. Write independently understandable complete sentences with explicit subjects. Use a natural paragraph for short answers and multiple substantial paragraphs for detailed answers. Do not use stock verification commentary such as "Only the supported details are included here." If a material point is uncertain, state that specific uncertainty naturally in context; never imply certainty that is not justified. Do not cite evidence IDs in prose. Prefer paraphrases over quotations. Evidence: ${serializeEvidence(evidence)}`;
 }
 
 function evidenceIndex(evidence) {
@@ -661,6 +661,35 @@ function sourceForEvidence(id,index,evidence,namedChapter,question) {
     }
   } catch {}
   return null;
+}
+
+// Group nearby cited verses into exact Quran.com passage links, retaining every cited verse.
+function groupApprovedSources(sources) {
+  const groups=new Map(), other=new Map();
+  for(const source of sources) {
+    const m=/^https:\/\/quran\.com\/(\d+)\/(\d+)$/.exec(source.url);
+    if(!m){other.set(source.url,source);continue;}
+    const ch=Number(m[1]); if(!groups.has(ch)) groups.set(ch,new Set()); groups.get(ch).add(Number(m[2]));
+  }
+  const result=[...other.values()];
+  for(const [ch,verses] of groups){
+    const sorted=[...verses].sort((a,b)=>a-b); let start=sorted[0],end=start;
+    const push=()=>result.push({url:`https://quran.com/${ch}/${start}${end===start?'':'-'+end}`,title:`Quran ${ch}:${start}${end===start?'':'–'+end}`,sourceType:'Quran translation'});
+    for(const v of sorted.slice(1)){if(v-end<=6)end=v;else{push();start=end=v;}} push();
+  }
+  // If necessary, merge nearest ranges within the same chapter; never drop a cited verse.
+  while(result.length>6){
+    let pair=null;
+    for(let i=0;i<result.length;i++)for(let j=i+1;j<result.length;j++){
+      const a=/^https:\/\/quran\.com\/(\d+)\/(\d+)(?:-(\d+))?$/.exec(result[i].url), b=/^https:\/\/quran\.com\/(\d+)\/(\d+)(?:-(\d+))?$/.exec(result[j].url);
+      if(!a||!b||a[1]!==b[1])continue;
+      const gap=Math.abs(+b[2]-+(a[3]||a[2])); if(!pair||gap<pair.gap)pair={i,j,a,b,gap};
+    }
+    if(!pair)break;
+    const {i,j,a,b}=pair,ch=+a[1],lo=Math.min(+a[2],+b[2]),hi=Math.max(+(a[3]||a[2]),+(b[3]||b[2]));
+    result[i]={url:`https://quran.com/${ch}/${lo}-${hi}`,title:`Quran ${ch}:${lo}–${hi}`,sourceType:'Quran translation'};result.splice(j,1);
+  }
+  return result;
 }
 
 function reviewUnits(answer) {
@@ -754,42 +783,28 @@ function toGeminiContents(messages) {
 }
 
 async function getQuranEvidence(surahNumber) {
-  try {
-    const number = Number(surahNumber);
-
-    if (!Number.isInteger(number) ||
-        number < 1 || number > 114) {
-      return [];
-    }
-
-    const base = (
-      process.env.QURAN_API_URL ||
-      'https://quranenc.com/api/v1'
-    ).replace(/\/$/, '');
-
-    const response = await fetch(
-      `${base}/translation/sura/english_saheeh/${number}`,
-      {
-        signal: AbortSignal.timeout(7000)
-      }
-    );
-
-    if (!response.ok) return [];
-
-    const data = await response.json();
-
-    return (Array.isArray(data.result)
-      ? data.result : []).map(verse => ({
-        surah: Number(verse.sura),
-        ayah: Number(verse.aya),
-        translation: verse.translation,
-        url: `https://quran.com/${verse.sura}/${verse.aya}`
-      })).filter(v => v.surah === number && Number.isInteger(v.ayah) && v.ayah > 0 && typeof v.translation === 'string' && v.translation.trim());
-
-  } catch (error) {
-    console.error('Quran retrieval failed:', error);
-    return [];
-  }
+  const number=Number(surahNumber);
+  if(!Number.isInteger(number)||number<1||number>114) return [];
+  const normalize=rows=>[...new Map(rows.filter(v=>v.surah===number && Number.isInteger(v.ayah)&&v.ayah>=1&&v.ayah<=VERSE_COUNTS[number-1]&&typeof v.translation==='string'&&v.translation.trim()).map(v=>[v.ayah,{...v,url:`https://quran.com/${number}/${v.ayah}`}])).values()].sort((a,b)=>a.ayah-b.ayah);
+  const primary=async()=>{
+    const base=(process.env.QURAN_API_URL||'https://quranenc.com/api/v1').replace(/\/$/,'');
+    const r=await fetch(`${base}/translation/sura/english_saheeh/${number}`,{signal:AbortSignal.timeout(6500)});
+    if(!r.ok) throw Error(`QuranEnc HTTP ${r.status}`);
+    const d=await r.json();
+    return normalize((Array.isArray(d.result)?d.result:[]).map(v=>({surah:Number(v.sura),ayah:Number(v.aya),translation:v.translation})));
+  };
+  const backup=async()=>{
+    const r=await fetch(`https://api.alquran.cloud/v1/surah/${number}/en.sahih`,{signal:AbortSignal.timeout(6500)});
+    if(!r.ok) throw Error(`Al Quran Cloud HTTP ${r.status}`);
+    const d=await r.json();
+    if(Number(d.data?.number)!==number || d.data?.edition?.identifier!=='en.sahih') return [];
+    return normalize((Array.isArray(d.data.ayahs)?d.data.ayahs:[]).map(v=>({surah:number,ayah:Number(v.numberInSurah),translation:v.text})));
+  };
+  const results=await Promise.allSettled([primary(),backup()]);
+  const available=results.filter(r=>r.status==='fulfilled').map(r=>r.value).sort((a,b)=>b.length-a.length);
+  const best=available[0]||[];
+  console.info('Deen Guide Quran coverage',number,best.length,VERSE_COUNTS[number-1]);
+  return best;
 }
 
 async function getHadithEvidence(hadithId) {
@@ -1018,11 +1033,13 @@ async function raceModels(candidates, invoke, clientSignal) {
   const shared = clientSignal ? AbortSignal.any([deadline, clientSignal]) : deadline;
   let error;
   let evidenceError;
+  let generalFallback;
   for (const candidate of candidates) {
     if (shared.aborted) break;
     try {
-      const signal = AbortSignal.any([shared, AbortSignal.timeout(26000)]);
+      const signal = AbortSignal.any([shared, AbortSignal.timeout(29000)]);
       const data = await invoke(candidate, signal);
+      if(data._generalFallback){generalFallback={data,model:candidate.label};continue;}
       return { data, model: candidate.label };
      } catch (e) {
       error = e;
@@ -1030,6 +1047,7 @@ async function raceModels(candidates, invoke, clientSignal) {
       console.error('Deen Guide model attempt failed:', candidate.label, e.name, e.status || '', e.message);
     }
   }
+  if(generalFallback){delete generalFallback.data._generalFallback;return generalFallback;}
   return { error: evidenceError || error || new Error('AI review timed out'), cancelled: !!clientSignal?.aborted };
 }
 // Normalize legacy numeric Quran arrays only when all verses are retrieved.
@@ -1263,7 +1281,7 @@ const kahfVirtues = namedChapter === 18 && virtueQuestion ? [
 let rawSources = [];
 // A named chapter can be fetched directly for an introduction/story; search
 // external evidence for other topics and for virtues/interpretation.
-if (question.trim() && (!namedChapter || virtueQuestion || /\b(?:hadith|hadeeth|tafsir|commentary|revelation|compare)\b/i.test(question))) {
+if (question.trim() && (webMode || !namedChapter || virtueQuestion || /\b(?:hadith|hadeeth|tafsir|commentary|revelation|compare)\b/i.test(question))) {
   try {
     const result = await searchIslamicEvidence(retrievalQuestion.slice(0,1000));
     rawSources = Array.isArray(result.results) ? result.results : [];
@@ -1384,7 +1402,7 @@ messages.splice(
           error.code = 'EVIDENCE_REJECTED';
           return error;
         };
-        const reviewPrompt = `Audit each numbered unit against the question and evidence. Return JSON only: {"audit":[{"id":1,"status":"supported","sources":["Q3:19"]}],"issues":[]}. Give every unit exactly one status. Cite the smallest sufficient set of directly supporting evidence IDs per unit; reuse relevant IDs where appropriate. In web mode aim for no more than six distinct source URLs across the answer. Never add a Hadith or Quran reference merely for variety. supported: every claim is relevant and supported by actual evidence, with all necessary valid IDs (Qchapter:verse, HdatabaseID, S1 etc for page excerpts only). nonfactual: structural heading or honest limitation, no sources. app: factual answer about known app navigation only, no sources. general: cautious, independently understandable, basic Islamic educational explanation (no precise scriptural claims, rulings, grades, rewards, historical specifics or quotations); no sources. unsupported: inaccurate, off-topic, speculative, unsupported precise detail, or unsafe; no sources. A valid Islamic question without evidence is not off-topic. Do not approve unrelated questions or unrelated evidence. For an exact Surah, keep the requested aspect only. Never infer Hadith grading from a website domain alone. Do not demand full chapter coverage for a definition. Preserve the exact conditions and grading of virtues. For Al-Kahf, do not invent the name of a ruler or claim both men owned gardens; distinguish produce loss from total wealth loss. Evidence: ${serializeEvidence(evidence)}`;
+        const reviewPrompt = `Audit each numbered unit against the question and evidence. Return JSON only: {"audit":[{"id":1,"status":"supported","sources":["Q3:19"]}],"issues":[]}. Give every unit exactly one status. Quran entries [chapter, verse, translation] have IDs Qchapter:verse. A paraphrase grounded in the retrieved verses is supported, not general. Check each sentence against all available evidence and return exact matching IDs. Do not reject a supported sentence merely because it has no printed citation. Cite the smallest sufficient set of directly supporting evidence IDs per unit; reuse relevant IDs where appropriate. Cite every necessary verse; the server groups related Quran verses into at most six passage links where possible. Never add a Hadith or Quran reference merely for variety. supported: every claim is relevant and supported by actual evidence, with all necessary valid IDs (Qchapter:verse, HdatabaseID, S1 etc for page excerpts only). nonfactual: structural heading or honest limitation, no sources. app: factual answer about known app navigation only, no sources. general: cautious, independently understandable, basic Islamic educational explanation (no precise scriptural claims, rulings, grades, rewards, historical specifics or quotations); no sources. unsupported: inaccurate, off-topic, speculative, unsupported precise detail, or unsafe; no sources. A valid Islamic question without evidence is not off-topic. Do not approve unrelated questions or unrelated evidence. For an exact Surah, keep the requested aspect only. Never infer Hadith grading from a website domain alone. Do not demand full chapter coverage for a definition. Preserve the exact conditions and grading of virtues. For Al-Kahf, do not invent the name of a ruler or claim both men owned gardens; distinguish produce loss from total wealth loss. Evidence: ${serializeEvidence(evidence)}`;
         async function reviewAnswer(answer) {
           const units=reviewUnits(answer);
           const reviewMessages=[{role:'user',content:JSON.stringify({question:retrievalQuestion,units})}];
@@ -1418,7 +1436,7 @@ messages.splice(
             if(row.status==='nonfactual') continue; // don't leave orphan headings after filtering
             const refs=row.sources.map(id=>sourceForEvidence(id,evidenceMap,evidence,namedChapter,question)).filter(Boolean);
             if(webMode && (!refs.length || refs.length!==row.sources.length)) {omitted=true;continue;}
-            if(webMode && new Set([...sourceMap.keys(),...refs.map(r=>r.url)]).size>6) {omitted=true;continue;}
+            if(webMode && groupApprovedSources([...sourceMap.values(),...refs]).length>6) {omitted=true;continue;}
             const words=unit.text.split(/\s+/).length;
             if(allowed.length>=budget.units || wordCount+words>budget.words) {omitted=true;continue;}
             allowed.push(unit.text); wordCount+=words;
@@ -1426,7 +1444,7 @@ messages.splice(
           }
           // Only use general educational material when no verified claim survived.
           // It is separately reviewed, clearly labelled and never given citations.
-          let content=allowed.join(' ');
+          let content=(webMode||explicitlyDetailed(question)) ? allowed.map((unit,i)=>unit+(i<allowed.length-1?((i+1)%4===0?'\n\n':' '):'')).join('') : allowed.join(' ');
           if(!content && general.length) {
             let count=0; const brief=[];
             for(const unit of general.slice(0,budget.units)) {const n=unit.split(/\s+/).length;if(count+n>budget.words) break;brief.push(unit);count+=n;}
@@ -1436,9 +1454,9 @@ messages.splice(
           // Keep the reviewed prose clean; no generic verification footer.
           // If a requested detail is missing, disclose that specifically instead of implying completeness.
           if (allowed.length && omitted && explicitlyDetailed(question)) content += ' I could not verify every requested detail.';
-          const refs=[...sourceMap.values()];
+          const refs=groupApprovedSources([...sourceMap.values()]);
           const selected=refs.slice(0,6);
-          return {...draft,sources:webMode?selected:[],choices:[{...draft.choices[0],message:{...draft.choices[0].message,content}}]};
+          return {...draft,_generalFallback:!allowed.length,sources:webMode?selected:[],choices:[{...draft.choices[0],message:{...draft.choices[0].message,content}}]};
         };
         let draft=await candidate.run(signal);
         let best=null;
@@ -1455,15 +1473,17 @@ messages.splice(
             if(audit) {
               const result=makeResult(draft,answer,audit);
               if(result) {
-                best=result;
                 // Keep independently approved material even if some details are rejected.
-                if(audit.audit.some(r=>r.status==='supported') || attempt===1) return result;
+                const supported=audit.audit.filter(r=>r.status==='supported').length;
+                const rejected=audit.audit.filter(r=>r.status==='unsupported').length;
+                if(!best || ((result.sources?.length||0)>0 && !(best.sources?.length||0)) || ((!!result.sources?.length===!!best.sources?.length) && result.choices[0].message.content.length>best.choices[0].message.content.length)) best=result;
+                if(attempt===1 || (supported>0 && rejected===0 && (!explicitlyDetailed(question)||supported>=4))) return best;
               }
             }
           }
           if(attempt===1 || signal.aborted) break;
           try {
-            const prompt=buildPrompt(evidence,overviewChapter,withLinks,webMode,namedChapter,question)+'\nWrite a shorter answer with independently supported claims. Do not refuse an Islamic question merely because sources are incomplete. If necessary provide a cautious basic educational explanation without precise claims.';
+            const prompt=buildPrompt(evidence,overviewChapter,withLinks,webMode,namedChapter,question)+'\nRewrite the answer using the supplied evidence. Preserve the requested level of detail and cover every supported requested story or theme; fix unsupported sentences rather than making the answer shorter. For a full story, give several complete sentences for each supported narrative. Do not refuse an Islamic question merely because sources are incomplete. If necessary provide a cautious basic educational explanation without precise claims.';
             draft=await candidate.run(signal,prompt,modelMessages);
           } catch(e) { console.error('Deen Guide retry failed:',e.name,e.status||''); break; }
         }
