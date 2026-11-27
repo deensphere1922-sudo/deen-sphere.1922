@@ -17299,7 +17299,31 @@ ISLAMIC EVIDENCE AND ACCURACY:
   let nodeIndex = 0;
   let charIndex = 0;
 
-  const typingTimer = window.setInterval(() => {
+  let typingTimer = null;
+  let typingFinished = false;
+  const finishTyping = () => {
+    if (typingFinished) return;
+    typingFinished = true;
+    window.clearInterval(typingTimer);
+    document.removeEventListener('visibilitychange', finishTyping);
+    window.removeEventListener('blur', finishTyping);
+    window.removeEventListener('focus', finishTyping);
+    div.innerHTML = formattedHtml;
+    div.style.paddingBottom = '12px';
+    setupTaskControls();
+    scrollThread();
+  };
+  document.addEventListener('visibilitychange', finishTyping);
+  window.addEventListener('blur', finishTyping);
+  window.addEventListener('focus', finishTyping);
+  if (document.hidden || !document.hasFocus()) {
+    finishTyping();
+  } else {
+  typingTimer = window.setInterval(() => {
+    if (!div.isConnected || document.hidden || !document.hasFocus()) {
+      finishTyping();
+      return;
+    }
     let remaining = 3;
 
     while (remaining > 0 && nodeIndex < nodes.length) {
@@ -17326,14 +17350,13 @@ ISLAMIC EVIDENCE AND ACCURACY:
     }
 
     if (nodeIndex >= nodes.length) {
-      window.clearInterval(typingTimer);
-      div.innerHTML = formattedHtml;
-      div.style.paddingBottom = '12px';
-      setupTaskControls();
+      finishTyping();
+      return;
     }
 
     scrollThread();
   }, 25);
+  }
 
 } else {
   setupTaskControls();
@@ -18193,7 +18216,6 @@ const toggleGuideRecording = async () => {
                     if (requestVersion === guideRequestVersion && S.guideThinking) showGuideStage(guideNormalStages, 1);
                   }, 650)
                 : null;
-              await new Promise(resolve => window.requestAnimationFrame(resolve));
               if (requestVersion !== guideRequestVersion) return;
 
               try {
