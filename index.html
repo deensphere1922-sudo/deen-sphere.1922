@@ -4071,6 +4071,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
           function _applyRemoteSyncPayload(key, val, remoteAt = 0) {
             try {
               // Reject echoes and out-of-order updates before touching local storage.
+              if (key === 'routine-struct' && pendingRoutineWrite() !== null) return;
               if (_isLocalEcho(key, val)) return;
               const localAt = Number(_localWriteAt[key]) || 0;
               const lastRemoteAt = Number(_lastRemoteSyncAt[key]) || 0;
@@ -4268,13 +4269,35 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
                 function getCloudUid() {
             return window.fb?.auth?.currentUser?.uid || window.__sbUid || S?._lastUid || S?.profile?.uid || null;
           }
+            // Durable per-user outbox for routine edits interrupted by a reload.
+            function pendingRoutineWrite() {
+              try { return localStorage.getItem(_lsKey('routine-struct-pending')); }
+              catch { return null; }
+            }
             async function getJSON(key) {
+            if (key === 'routine-struct') {
+              const pending = pendingRoutineWrite();
+              if (pending !== null) {
+                try {
+                  const value = JSON.parse(pending);
+                  if (value && Array.isArray(value.weekday) && Array.isArray(value.weekend)) {
+                    if (window.fb?.auth?.currentUser) setJSON(key, value).catch(console.warn);
+                    return value;
+                  }
+                } catch (e) { console.warn('Invalid pending routine edit', e); }
+              }
+            }
             if (key === 'quran-progress' && _fullSurahOwnsPointer) return S.quranProgress;
             const readStartedAt = Number(_localWriteAt[key]) || 0;
             const uid = getCloudUid();
             if (uid && window.fb?.auth?.currentUser?.uid === uid) {
               try { const snap=await Promise.race([window.fb.getDoc(window.fb.doc(window.fb.db,'users',uid,'data',key)),new Promise((_,reject)=>setTimeout(()=>reject(Error('Cloud read timeout')),8000))]);
                 if (key === 'quran-progress' && (_fullSurahOwnsPointer || (Number(_localWriteAt[key]) || 0) !== readStartedAt)) return S.quranProgress;
+                if (key === 'routine-struct') {
+                  const pending = pendingRoutineWrite();
+                  if (pending !== null) return JSON.parse(pending);
+                  if ((Number(_localWriteAt[key]) || 0) !== readStartedAt) return S.routineStruct;
+                }
                 if(snap.exists()){let val=snap.data().value;if(key==='pfp'){const local=JSON.parse(localStorage.getItem(_lsKey(key))||'null');if(local && Number(local.updatedAt)>Number(val?.updatedAt)) val=local;} try{localStorage.setItem(_lsKey(key),JSON.stringify(val));}catch{} return val;}
               }catch(e){console.warn('Cloud read failed',key,e);}
             }
@@ -4310,7 +4333,11 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
               val = { ...val, updatedAt: Date.now() };
             }
 
-        const serialized = JSON.stringify(val);
+            const serialized = JSON.stringify(val);
+            if (key === 'routine-struct') {
+              try { localStorage.setItem(_lsKey('routine-struct-pending'), serialized); }
+              catch (e) { console.warn('Could not cache pending routine edit', e); }
+            }
   const cloudVal = getCloudSyncValue(key, val);
             // Record the local edit before broadcasting or starting the network write.
             // Delayed database events must not roll a freshly ticked prayer back to its
@@ -4348,6 +4375,12 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
               if (!user || user.uid !== uid) return false;
               const ref = window.fb.doc(window.fb.db, 'users', uid, 'data', key);
               await window.fb.setDoc(ref, { value: latestVal, updatedAt: Date.now(), clientUpdatedAt: Date.now(), key });
+              if (key === 'routine-struct' && version === _cloudWriteVersions[queueKey]) {
+                try {
+                  const pendingKey = 'u:' + uid + ':routine-struct-pending';
+                  if (localStorage.getItem(pendingKey) === JSON.stringify(latestVal)) localStorage.removeItem(pendingKey);
+                } catch (e) {}
+              }
               if (typeof _sbBroadcastWrite === 'function') _sbBroadcastWrite(key, latestVal);
               window.__cloudSyncError = null;
               return true;
@@ -4428,6 +4461,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
               const unsub = window.fb.onSnapshot(ref, (snap) => {
                 if (!snap.exists() || snap.metadata.hasPendingWrites) return;
                 const val = snap.data().value;
+                if (key === 'routine-struct' && pendingRoutineWrite() !== null) return;
                 if (_isLocalEcho(key, val) || _hasFreshLocalWrite(key)) return;
                 try { localStorage.setItem(_lsKey(key), JSON.stringify(val)); } catch (e) {}
                 onRemoteChange(val);
@@ -4449,6 +4483,7 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
           function _applyRemoteSyncPayload(key, val, remoteAt = 0) {
             try {
               // Reject echoes and out-of-order updates before touching local storage.
+              if (key === 'routine-struct' && pendingRoutineWrite() !== null) return;
               if (_isLocalEcho(key, val)) return;
               const localAt = Number(_localWriteAt[key]) || 0;
               const lastRemoteAt = Number(_lastRemoteSyncAt[key]) || 0;
@@ -7168,10 +7203,11 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
               const onboardingRaw = localStorage.getItem(_lsKey('onboarding-done'));
               if (onboardingRaw) S.onboardingDone = JSON.parse(onboardingRaw);
 
-              const routineRaw = localStorage.getItem(_lsKey('routine-struct'));
+              const routineRaw = pendingRoutineWrite() || localStorage.getItem(_lsKey('routine-struct'));
               if (routineRaw) {
                 const parsed = JSON.parse(routineRaw);
-                if (Array.isArray(parsed) && parsed.length) S.routineStruct = parsed;
+                if (parsed && Array.isArray(parsed.weekday) && Array.isArray(parsed.weekend)) S.routineStruct = parsed;
+                else if (Array.isArray(parsed) && parsed.length) S.routineStruct = { weekday: cloneStructure(parsed), weekend: cloneStructure(ROUTINE_STRUCT_WEEKEND) };
               }
 
             // --- FIX 2: load THIS user's cached days (uid may not be known yet) ---
@@ -11258,6 +11294,7 @@ function _calculateQuranReadStats(targetDateStr) {
         S.routineStruct.weekday = cloneStructure(newStruct);
       }
 
+      const savePromise = setJSON('routine-struct', S.routineStruct);
       const body = document.getElementById('routine-body');
       if (body) {
         body.innerHTML = _buildRoutineBodyHTML(viewDate, S.dayCache[viewDate] || null);
@@ -11265,8 +11302,9 @@ function _calculateQuranReadStats(targetDateStr) {
       }
 
       try {
-        await setJSON('routine-struct', S.routineStruct);
-        if (successMsg) toast(successMsg);
+        const saved = await savePromise;
+        if (saved === false) toast('Saved on this device. Cloud sync pending.');
+        else if (successMsg) toast(successMsg);
       } catch (error) {
         console.error('Failed to save routine structure:', error);
         toast('Failed to save routine changes.');
