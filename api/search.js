@@ -106,7 +106,7 @@
     }
     // Treat broad Islam/Qur'an/Hadith questions as valid general searches.
     // If the user typed a misspelling, normalizeWord corrects it before this check.
-    const meaningful = terms.filter(word => !['routine', 'daily', 'schedule', 'plan'].includes(word));
+    const meaningful = terms.filter(word => !['routine', 'daily', 'schedule', 'plan','mean','meaning','means','definition','what','is','explain','define'].includes(word));
     const broad = meaningful.length === 1 && ['islam', 'quran', 'hadith'].includes(meaningful[0]);
     const topic = broad ? meaningful[0] : (terms.join(' ') || String(question).trim());
     return { topic, terms: broad ? meaningful : terms, broad };
@@ -118,7 +118,7 @@
     const titleTerms = new Set(tokenize(title));
     const contentTerms = new Set(tokenize(content));
     const matched = terms.filter(term => titleTerms.has(term) || contentTerms.has(term));
-    if (!matched.length) return topic.broad ? Math.min(Math.max(providerScore, 0), 1) * 0.60 : 0;
+    if (!matched.length) return 0;
     const coverage = new Set(matched).size / terms.length;
     const titleCoverage = terms.filter(term => titleTerms.has(term)).length / terms.length;
     const contentCoverage = terms.filter(term => contentTerms.has(term)).length / terms.length;
@@ -199,6 +199,7 @@ function classifySource(url) {
         return res.status(400).json({ error: `Enter a search question between 2 and ${MAX_QUERY_LENGTH} characters.` });
   
       const topic = getTopic(query);
+      const searchQuestion = topic.broad && topic.topic === 'islam' ? 'Islam meaning submission to Allah Quran 3:19 3:20' : query;
   
     const apiKey = process.env.TAVILY_API_KEY?.trim();
   
@@ -215,7 +216,7 @@ function classifySource(url) {
                 Authorization: `Bearer ${apiKey.trim()}`
               },
               body: JSON.stringify({
-                query: group.query(query, topic.topic).slice(0, 390),
+                query: group.query(searchQuestion, topic.topic).slice(0, 390),
                 search_depth: 'advanced',
                 max_results: group.limit,
                 include_domains: group.domains,
@@ -318,7 +319,7 @@ function classifySource(url) {
               'X-API-KEY': serperKey
             },
             body: JSON.stringify({
-              q: `${query.slice(0, 300)} (${siteFilter})`,
+              q: `${searchQuestion.slice(0, 300)} (${siteFilter})`,
               hl: 'en',
               num: 10
             }),
