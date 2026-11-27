@@ -18484,11 +18484,130 @@ if (attachButton && plusMenu) {
     });
   }
 }
+// Custom local attachment browser. No file contents are read until selected.
+const openGuideFilePicker = () => {
+  if (guideWebSearchEnabled || !fileInput) return;
+  const host = $('#deen-guide-screen');
+  if (!host) return;
+  const old = host.querySelector('#guide-local-picker');
+  if (old) { old.remove(); }
+  const dialog = document.createElement('dialog');
+  dialog.id = 'guide-local-picker';
+  dialog.setAttribute('aria-labelledby', 'guide-local-picker-title');
+  dialog.style.cssText = 'position:fixed;inset:0;margin:auto;width:min(480px,calc(100% - 32px));max-height:85dvh;padding:18px;border:1px solid var(--border);border-radius:18px;background:var(--card);color:var(--tx);overflow:auto;box-shadow:0 20px 65px #0006;';
+  dialog.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
+      <h2 id="guide-local-picker-title" style="font-size:17px;margin:0;">Attach image or PDF</h2>
+      <button type="button" data-picker-close aria-label="Close" style="font-size:24px;padding:4px 8px;">×</button>
+    </div>
+    <p style="font-size:12px;color:var(--tx2);line-height:1.5;margin-bottom:12px;">Choose a folder to list its PDFs and images. Files stay on your device until you attach and send them.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <button type="button" class="btn btn-ghost" data-picker-folder>Choose folder</button>
+      <button type="button" class="btn btn-ghost" data-picker-refresh>Refresh</button>
+      <button type="button" class="btn btn-ghost" data-picker-browse>Browse files</button>
+    </div>
+    <p data-picker-status role="status" aria-live="polite" style="font-size:12px;color:var(--tx2);margin-bottom:10px;"></p>
+    <div data-picker-list style="max-height:42dvh;overflow:auto;display:grid;gap:6px;"></div>
+    <button type="button" class="btn btn-primary" data-picker-attach style="width:100%;justify-content:center;margin-top:14px;" disabled>Attach selected files (0)</button>
+    <p style="font-size:11px;color:var(--tx3);margin-top:8px;">PDF, PNG, JPG, JPEG, WEBP · up to 12 MB each</p>`;
+  host.appendChild(dialog);
+  const q = selector => dialog.querySelector(selector);
+  const status = q('[data-picker-status]');
+  const list = q('[data-picker-list]');
+  const attach = q('[data-picker-attach]');
+  const choose = q('[data-picker-folder]');
+  const refresh = q('[data-picker-refresh]');
+  const selected = new Map();
+  const supported = typeof window.showDirectoryPicker === 'function';
+  let handle = window.__deenGuideFolderHandle || null;
+  let generation = 0;
+  let busy = false;
+  const capacity = () => Math.max(0, 3 - pendingAttachments.length);
+  const update = () => {
+    attach.textContent = `Attach selected files (${selected.size})`;
+    attach.disabled = busy || !selected.size || selected.size > capacity();
+    choose.disabled = busy || !supported;
+    refresh.disabled = busy || !supported || !handle;
+  };
+  const close = () => { if (dialog.open) dialog.close(); else dialog.remove(); };
+  dialog.addEventListener('close', () => { generation++; dialog.remove(); if (attachButton?.isConnected) attachButton.focus(); }, {once:true});
+  q('[data-picker-close]').onclick = close;
+  q('[data-picker-browse]').onclick = () => { close(); if (!guideWebSearchEnabled) fileInput.click(); };
+  const load = async () => {
+    const current = ++generation;
+    selected.clear(); list.replaceChildren(); busy = true; update();
+    status.textContent = 'Reading folder…';
+    try {
+      if (!handle) return;
+      if (await handle.queryPermission({mode:'read'}) !== 'granted') {
+        status.textContent = 'Choose the folder again to allow access.'; return;
+      }
+      const entries = [];
+      for await (const entry of handle.values()) {
+        if (entry.kind === 'file' && /\.(pdf|png|jpe?g|webp)$/i.test(entry.name)) entries.push(entry);
+      }
+      if (current !== generation || !dialog.isConnected) return;
+      entries.sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric:true}));
+      status.textContent = `${handle.name} · ${entries.length} supported file${entries.length === 1 ? '' : 's'}`;
+      for (const entry of entries) {
+        const row = document.createElement('label');
+        row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--card-el);cursor:pointer;';
+        const check = document.createElement('input');
+        check.type = 'checkbox'; check.style.cssText = 'width:18px;height:18px;flex:none;accent-color:var(--green-l);';
+        const kind = document.createElement('span');
+        kind.textContent = /\.pdf$/i.test(entry.name) ? 'PDF' : 'IMG';
+        kind.style.cssText = 'font-size:11px;font-weight:700;color:var(--green-l);flex:none;';
+        const name = document.createElement('span'); name.textContent = entry.name;
+        name.style.cssText = 'font-size:13px;overflow-wrap:anywhere;min-width:0;';
+        check.onchange = () => {
+          if (check.checked && selected.size >= capacity()) { check.checked = false; toast('Attach up to 3 files per message.'); return; }
+          if (check.checked) selected.set(entry.name, entry); else selected.delete(entry.name);
+          update();
+        };
+        row.append(check,kind,name); list.appendChild(row);
+      }
+      if (!entries.length) status.textContent += ' · No PDFs or images found.';
+    } catch (error) {
+      if (current === generation) status.textContent = 'Could not read this folder. Choose another folder or Browse files.';
+      console.warn('Guide folder read:', error);
+    } finally { if (current === generation) { busy = false; update(); } }
+  };
+  choose.onclick = async () => {
+    if (!supported || busy) return;
+    busy = true; update();
+    try {
+      const next = await window.showDirectoryPicker({mode:'read', startIn:'downloads'});
+      if (!dialog.isConnected) return;
+      handle = next; window.__deenGuideFolderHandle = next;
+      await load();
+    } catch (error) {
+      if (error.name !== 'AbortError' && dialog.isConnected) status.textContent = 'Folder access unavailable. Try another folder or Browse files.';
+    } finally { busy = false; update(); }
+  };
+  refresh.onclick = () => { if (!busy) load(); };
+  attach.onclick = async () => {
+    if (busy || guideWebSearchEnabled || !selected.size || selected.size > capacity()) return;
+    busy = true; update();
+    try {
+      const files = [];
+      for (const entry of selected.values()) files.push(await entry.getFile());
+      if (!dialog.isConnected || guideWebSearchEnabled) return;
+      close(); await prepareGuideFiles(files);
+    } catch (error) { if (dialog.isConnected) status.textContent = 'A selected file could not be opened. Refresh and try again.'; else toast('Could not attach selected files.'); }
+    finally { busy = false; update(); }
+  };
+  if (typeof dialog.showModal !== 'function') { dialog.remove(); fileInput.click(); return; }
+  dialog.showModal();
+  if (!supported) status.textContent = 'Folder access is not supported on this browser. Use Browse files.';
+  else if (handle) load();
+  else status.textContent = 'Choose Downloads or another folder to see available files.';
+  update();
+};
 if (menuAttachButton && fileInput) {
   menuAttachButton.onclick = () => {
     if (guideWebSearchEnabled) return;
     closeGuidePlusMenu();
-    fileInput.click();
+    openGuideFilePicker();
   };
 }
 if (webSearchToggle) {
