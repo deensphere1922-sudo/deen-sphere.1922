@@ -268,6 +268,9 @@ function classifySource(url) {
   );
   
   const candidates = [];
+  if (/\b(?:tahaj+ud|tahejjud|tahajjud|night prayer|qiyam)\b/i.test(query)) {
+    for(const [id,title] of [[990,'Night prayer in pairs'],[1145,'Last third of the night']]) candidates.push({title,url:`https://sunnah.com/bukhari:${id}`,content:'',sourceType:'Hadith evidence',evidenceQuality:'search_snippet',score:0.9});
+  }
   let successfulSearches = 0;
       for (let index = 0; index < responses.length; index++) {
       const group = sourceGroups[index];
@@ -402,7 +405,8 @@ function classifySource(url) {
    const seenUrls = new Set();
   const seenTitles = new Set();
   
-  const unique = candidates
+  const hydratedCandidates = await Promise.all(candidates.map(source => source.content ? source : hydrateHadith(source)));
+  const unique = hydratedCandidates.filter(source => source.content)
     .sort((a, b) => Number(b.evidenceQuality === "page_excerpt") - Number(a.evidenceQuality === "page_excerpt") || b.score - a.score)
     .filter(source => {
       const url = new URL(source.url);
