@@ -3490,6 +3490,13 @@ html[data-theme="dark"] {
   }
 }
 
+/* Deen Guide — mutually exclusive menu options */
+#guide-menu-attach:disabled,
+#guide-web-search-toggle:disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  background: transparent !important;
+}
 </style>
       <!-- Code injected by Five-server -->
   <script async data-id="five-server" data-file="c:\Users\T0151\Desktop\deensphere1922\index.html" type="application/javascript" src="/fiveserver.js"></script>
@@ -17546,6 +17553,10 @@ const extractPdf = async file => {
 };
 
 const renderPendingAttachments = () => {
+  const attachOption = $('#guide-menu-attach');
+  const webOption = $('#guide-web-search-toggle');
+  if (attachOption) attachOption.disabled = guideWebSearchEnabled;
+  if (webOption) webOption.disabled = pendingAttachments.length > 0;
   const tray = $('#guide-attachment-tray');
   if (!tray) return;
   tray.replaceChildren();
@@ -17600,6 +17611,8 @@ const renderPendingAttachments = () => {
 };
 
 const setGuideWebSearchEnabled = enabled => {
+  if (enabled && pendingAttachments.length > 0) return;
+  if (enabled) attachmentVersion++;
   guideWebSearchEnabled = enabled;
   const toggle = $('#guide-web-search-toggle');
   if (toggle) toggle.setAttribute('aria-pressed', String(enabled));
@@ -17607,6 +17620,7 @@ const setGuideWebSearchEnabled = enabled => {
 };
 
 const prepareGuideFiles = async files => {
+  if (guideWebSearchEnabled) return;
   const currentVersion = ++attachmentVersion;
   for (const file of Array.from(files || [])) {
     if (pendingAttachments.length >= 3) {
@@ -17644,6 +17658,7 @@ const prepareGuideFiles = async files => {
           modelImages: extracted.modelImages
         });
       }
+      renderPendingAttachments();
     } catch (error) {
       console.error(`Could not prepare attachment ${file.name}:`, error);
       toast(`${file.name}: ${error.message || 'Could not read this file.'}`);
@@ -18438,6 +18453,7 @@ if (attachButton && plusMenu) {
     const opening = plusMenu.style.display === 'none';
     plusMenu.style.display = opening ? 'block' : 'none';
     attachButton.setAttribute('aria-expanded', String(opening));
+    if (opening) renderPendingAttachments();
   };
   const guideScreen = $('#deen-guide-screen');
   if (guideScreen) {
@@ -18453,6 +18469,7 @@ if (attachButton && plusMenu) {
 }
 if (menuAttachButton && fileInput) {
   menuAttachButton.onclick = () => {
+    if (guideWebSearchEnabled) return;
     closeGuidePlusMenu();
     fileInput.click();
   };
