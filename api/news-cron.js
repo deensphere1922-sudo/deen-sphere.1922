@@ -211,7 +211,12 @@ export default async function handler(req, res) {
   if (!process.env.CRON_SECRET || req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) return res.status(401).send("Unauthorized");
   try {
     const now = new Date();
-    console.log('CRON START:', now.toISOString());
+   console.log(
+  'CRON START:',
+  now.toISOString(),
+  '| SOURCE:',
+  req.headers['x-cron-source'] || 'Unknown'
+);
     const profiles = (await db.collectionGroup('data').where('key','==','settings').get()).docs.map(d=>({user_id:d.ref.parent.parent.id,value:d.data().value}));
 
     if (!profiles || profiles.length === 0) return res.status(200).send('No user settings found.');
