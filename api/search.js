@@ -156,7 +156,7 @@ async function directVerseResults(chapter, wanted) {
     const titleTerms = new Set(tokenize(title));
     const contentTerms = new Set(tokenize(content));
     const matched = terms.filter(term => titleTerms.has(term) || contentTerms.has(term));
-    if (!matched.length) return topic.broad ? Math.min(Math.max(providerScore, 0), 1) * 0.60 : 0;
+    if (!matched.length) return 0;
     const coverage = new Set(matched).size / terms.length;
     const titleCoverage = terms.filter(term => titleTerms.has(term)).length / terms.length;
     const contentCoverage = terms.filter(term => contentTerms.has(term)).length / terms.length;
@@ -248,12 +248,16 @@ function classifySource(url) {
   export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
     if (!await requireUser(req,res)) return;
+    const query = getQuestion(await getRequestBody(req));
+    if (query.length < 2 || query.length > MAX_QUERY_LENGTH) return res.status(400).json({error:'Invalid search question length.'});
+    return res.status(200).json(await searchIslamicEvidence(query));
+  }
+
+  // Only called by the authenticated guide or search handlers.
+  export async function searchIslamicEvidence(query) {
     try {
-      const body = await getRequestBody(req);
-      const query = getQuestion(body);
-      if (query.length < 2 || query.length > MAX_QUERY_LENGTH)
-        return res.status(400).json({ error: `Enter a search question between 2 and ${MAX_QUERY_LENGTH} characters.` });
-  
+      query = String(query || '').trim().slice(0, MAX_QUERY_LENGTH);
+      if (!query) return {results:[],total:0,researchUnavailable:true};
       const topic = getTopic(query);
       const chapter = requestedChapter(query);
       const strictChapter = !!chapter && !/\b(?:compare|comparison|versus|vs|hadith|hadeeth|virtues?|benefits?|rewards?|friday|jummah|jumuah|protection|dajjal)\b/i.test(query);
@@ -261,11 +265,12 @@ function classifySource(url) {
       // Short definition questions get direct scripture rather than generic search pages.
       if (islamDefinition) {
         const verses = await directVerseResults(3,[19,20]);
-        if (verses.length) return res.status(200).json({results:verses.map(({score,...v})=>v),total:verses.length,researchUnavailable:false});
+        if (verses.length) return {results:verses.map(({score,...v})=>v),total:verses.length,researchUnavailable:false};
       }
       const virtueQuery = /\b(?:benefits?|virtues?|rewards?|friday|jummah|jumuah|protection|dajjal)\b/i.test(query);
-      const searchQuestion = islamDefinition ? 'What does Islam mean as submission to Allah? Quran 3:19 and 3:20' : query;
-      const activeGroups = strictChapter ? sourceGroups.filter(g=>g.type !== 'Hadith evidence') : sourceGroups;
+      const searchQuestion = islamDefinition ? 'What does Islam mean as submission to Allah? Quran 3:19 and 3:20' : query.replace(/\btahajud\b/gi,'tahajjud').replace(/\btawakul\b/gi,'tawakkul');
+      const wantsTafsir = /\b(?:tafsir|commentary|historical|context|revelation)\b/i.test(query);
+      const activeGroups = sourceGroups.filter(g => (!strictChapter || g.type !== 'Hadith evidence') && (wantsTafsir || g.type !== 'Tafsir evidence'));
   
     const apiKey = process.env.TAVILY_API_KEY?.trim();
   
@@ -369,7 +374,7 @@ function classifySource(url) {
   
   
     // SERPER BACKUP WEB SEARCH
-  if (candidates.length === 0 || !activeGroups.every(group=>candidates.some(c=>c.sourceType===group.type))) {
+  if (candidates.length === 0 || !activeGroups.every(group=>candidates.some(c=>c.sourceType===group.type && c.evidenceQuality==='page_excerpt'))) {
     const serperKey = process.env.SERPER_API_KEY?.trim();
   
     if (serperKey) {
@@ -465,8 +470,8 @@ function classifySource(url) {
       url.hash = '';
       url.search = '';
   
-      const urlKey = url.href
-        .replace(/\/$/, '');
+      const v = exactVersePath(url);
+      const urlKey = v ? `https://quran.com/${v.chapter}/${v.verse}` : url.href.replace(/\/$/, '');
   
       const titleKey = String(source.title || '')
         .normalize('NFKC')
@@ -493,19 +498,11 @@ function classifySource(url) {
       const ranked = virtueQuery ? [...unique.filter(x=>x.sourceType==='Hadith evidence'), ...unique.filter(x=>x.sourceType!=='Hadith evidence')] : unique;
       const finalResults = ranked.slice(0, MAX_SOURCES).map(({ score, ...source }) => source);
 
-  return res.status(200).json({
-    results: finalResults,
-    total: finalResults.length,
-    researchUnavailable: finalResults.length === 0
-  });
+  return {results:finalResults,total:finalResults.length,researchUnavailable:finalResults.length===0};
   
   } catch (error) {
     console.error('Web search API error:', error);
   
-    return res.status(200).json({
-      results: [],
-      total: 0,
-      researchUnavailable: true
-    });
+    return {results:[],total:0,researchUnavailable:true};
   }
   }
