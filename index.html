@@ -5778,7 +5778,10 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
               _qAudio = null; _qAudioBtn = null;
 
               if (_autoPlayNextSurah && num < 114) {
-                if (S.screen === 'quran-reader' && S.arg === num) {
+              if (
+  S.screen === 'quran-reader' &&
+  Number(S.arg) === Number(num)
+) {
                   go('quran-reader', num + 1);
                   setTimeout(() => {
                     _playSurahAudio(num + 1, true);
@@ -8168,9 +8171,18 @@ function updateDeenUrl(screen, arg) {
         // requested destination is already the current screen, do nothing.
         // Ignore stale route arguments here so a repeated click cannot repaint
         // the screen or restart its entrance transition.
-        if (screen === S.screen) {
-          return;
-        }
+       if (
+  screen === S.screen &&
+  (
+    screen !== 'quran-reader' ||
+    (
+      Number(arg) === Number(S.arg) &&
+      !verseArg
+    )
+  )
+) {
+  return;
+}
 
         teardownSettingsFreeze();
 
