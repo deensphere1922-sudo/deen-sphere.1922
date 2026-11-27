@@ -18476,8 +18476,12 @@ if (menuAttachButton && fileInput) {
 }
 if (webSearchToggle) {
   webSearchToggle.onclick = () => {
-    if (guideWebSearchEnabled) return;
     if (pendingAttachments.length > 0) return;
+
+    if (guideWebSearchEnabled) {
+      closeGuidePlusMenu();
+      return;
+    }
 
     setGuideWebSearchEnabled(true);
     closeGuidePlusMenu();
