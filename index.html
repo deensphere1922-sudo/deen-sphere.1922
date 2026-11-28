@@ -10832,7 +10832,10 @@ function _calculateQuranReadStats(targetDateStr) {
       }
     }
 
-    return finalStruct.filter(section => section[2].length > 0);
+  return finalStruct.filter(section =>
+  section[2].length > 0 ||
+  String(section[0]).startsWith('sec')
+);
   }
 
                       function cloneDefaultRoutine(d) {
