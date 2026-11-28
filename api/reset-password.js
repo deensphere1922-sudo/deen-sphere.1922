@@ -51,9 +51,20 @@ export default async function handler(req, res) {
     const dailyRef = db.collection('password_reset_limits')
       .doc('daily-' + day);
 
+    const ip = String(
+  req.headers['x-vercel-forwarded-for'] || 'unknown'
+).split(',')[0].trim();
+
+const ipRef = db.collection('password_reset_limits')
+  .doc('ip-' + hash(ip + ':' + day));
+
     const allowed = await db.runTransaction(async tx => {
       const emailSnap = await tx.get(emailRef);
       const dailySnap = await tx.get(dailyRef);
+      const ipSnap = await tx.get(ipRef);
+const ipCount = ipSnap.data()?.count || 0;
+
+if (ipCount >= 10) return false;
 
       const previous = emailSnap.data() || {};
       const daily = dailySnap.data() || {};
@@ -82,7 +93,10 @@ export default async function handler(req, res) {
       tx.set(dailyRef, {
         count: (daily.count || 0) + 1
       });
-
+tx.set(ipRef, {
+  count: ipCount + 1,
+  day
+});
       return true;
     });
 
@@ -108,9 +122,13 @@ export default async function handler(req, res) {
     const original = new URL(firebaseLink);
     const oobCode = original.searchParams.get('oobCode');
 
-    if (!oobCode) {
-      throw new Error('Reset code missing');
-    }
+    if (
+  original.protocol !== 'https:' ||
+  original.searchParams.get('mode') !== 'resetPassword' ||
+  !oobCode
+) {
+  throw new Error('Invalid Firebase reset link');
+}
 
     // Open Deen Sphere's custom reset screen
     const resetURL = new URL(APP_URL);
