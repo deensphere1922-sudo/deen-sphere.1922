@@ -922,10 +922,18 @@ body {
             opacity: 0;
             transition: opacity .2s ease;
           }
-          .yt-overlay.show {
-            display: flex;
-            opacity: 1;
-          }
+         .yt-overlay.show {
+    display: flex;
+    opacity: 1;
+}
+
+/* Center video player within main content area */
+@media (min-width: 881px) {
+    .yt-overlay {
+        padding-left: 266px;
+        padding-right: 16px;
+    }
+}
 
               /* The video card — centered 16:9 box, moderate size */
               /* The video card — centered 16:9 box */
