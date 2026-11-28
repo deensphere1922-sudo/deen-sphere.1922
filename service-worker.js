@@ -1,6 +1,6 @@
 importScripts('/push-service-worker.js');
 
-const CACHE_VERSION = 'v13-firebase';
+const CACHE_VERSION = 'v14-firebase';
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -79,22 +79,6 @@ function _checkAll() {
       const t = _toDate(_swState.times[key]);
       if (!t) continue;
       const label = key.charAt(0).toUpperCase() + key.slice(1);
-
-
-      // +30 min → show popup in open app
-      const checkTime = new Date(t.getTime() + 30 * 60 * 1000);
-      if (checkTime.getHours() === hh && checkTime.getMinutes() === mm) {
-        const fireKey = todayKey + ':check-' + key;
-        if (!_swState.lastFired[fireKey]) {
-          _swState.lastFired[fireKey] = true;
-          _pingOpenClients({
-            type: 'SHOW_PRAYER_MODAL',
-            prayer: key,
-            title: label + ' Check',
-            tag: 'check-' + key,
-          });
-        }
-      }
     }
   }
 }
