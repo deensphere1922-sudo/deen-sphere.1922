@@ -8476,7 +8476,7 @@ if (!window.__deenHandlingPopState) {
 
               const isLoggedOutScreen = [
           'splash', 'onboarding', 'auth', 'forgot-password',
-          'reset-password', 'reset-password-expired',
+         'reset-password', 'reset-password-expired', 'reset-password-success',
           'setup-location', 'setup-calc', 'setup-birthday', 'setup-notif'
         ].includes(S.screen);
 
@@ -8507,6 +8507,12 @@ if (!window.__deenHandlingPopState) {
             if (s === 'forgot-password') { app.innerHTML = renderForgotPassword(); _applyDeenSphereScreenEntrance(app, shouldAnimateScreen); bindForgotPassword(); return; }
           if (s === 'reset-password') { app.innerHTML = renderResetPassword(); _applyDeenSphereScreenEntrance(app, shouldAnimateScreen); bindResetPassword(); return; }
       if (s === 'reset-password-expired') { app.innerHTML = renderResetPasswordExpired(); _applyDeenSphereScreenEntrance(app, shouldAnimateScreen); bindResetPasswordExpired(); return; }
+        if (s === 'reset-password-success') {
+  app.innerHTML = renderResetPasswordSuccess();
+  _applyDeenSphereScreenEntrance(app, shouldAnimateScreen);
+  bindResetPasswordSuccess();
+  return;
+}              
             if (s === 'setup-location') { app.innerHTML = renderSetupLocation(); _applyDeenSphereScreenEntrance(app, shouldAnimateScreen); bindSetupLocation(); return; }
             if (s === 'setup-calc') { app.innerHTML = renderSetupCalc(); _applyDeenSphereScreenEntrance(app, shouldAnimateScreen); bindSetupCalc(); return; }
             if (s === 'setup-birthday') { app.innerHTML = renderSetupBirthday(); _applyDeenSphereScreenEntrance(app, shouldAnimateScreen); bindSetupBirthday(); return; }
@@ -9102,13 +9108,13 @@ const result = await response.json();
 if (!response.ok || !result.success) {
   throw new Error(result.error || 'Unable to request password reset.');
 }
-                toast('Reset link sent! Check your email inbox.');
+               toast('Check your email inbox for a reset link.');
                 const box = btn.parentElement;
                 box.innerHTML = `
                         <div style="background:var(--green-dim);border:1px solid var(--green);border-radius:var(--r-md);padding:18px;text-align:center;">
                           <div style="font-size:15px;font-weight:700;color:var(--green-l);margin-bottom:6px;">✓ Email sent</div>
                           <div style="color:var(--tx2);font-size:13px;line-height:1.6;">
-                            We sent a password reset link to <strong style="color:var(--tx);">${esc(email)}</strong>.<br>
+                          If an account exists for <strong style="color:var(--tx);">${esc(email)}</strong>, a password reset link will be sent.<br>
                             Click the link in that email to set a new password.
                           </div>
                           <button class="btn btn-ghost btn-block" style="margin-top:14px;" id="back-2">Back to Sign In</button>
@@ -9162,6 +9168,45 @@ if (!response.ok || !result.success) {
         if (backBtn) backBtn.onclick = () => go('auth');
       }
 
+              function renderResetPasswordSuccess() {
+  return `
+    <div class="scr" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">
+      <div style="width:100%;max-width:400px;text-align:center;">
+
+        <div style="margin-bottom:24px;">
+          ${logoSvg(48)}
+          <div style="font-size:20px;font-weight:700;margin-top:8px;">
+            Deen Sphere
+          </div>
+        </div>
+
+        <div style="width:64px;height:64px;border-radius:50%;background:var(--green-dim);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--green-l)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M8 12l3 3 5-6"/>
+          </svg>
+        </div>
+
+        <div style="font-size:20px;font-weight:700;margin-bottom:10px;">
+          Password updated successfully
+        </div>
+
+        <div style="color:var(--tx2);font-size:13.5px;line-height:1.65;margin-bottom:26px;">
+          Your password has been changed successfully.
+          You can now sign in with your new password.
+        </div>
+
+        <button class="btn btn-primary btn-block" id="reset-success-signin">
+          Back to Sign In
+        </button>
+
+      </div>
+    </div>`;
+}
+
+function bindResetPasswordSuccess() {
+  $('#reset-success-signin').onclick = () => go('auth');
+}
       function renderResetPassword() {
             return `<div class="scr" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">
                     <div style="width:100%;max-width:400px;">
@@ -9207,8 +9252,7 @@ if (!response.ok || !result.success) {
             _resetCode = '';
             try { window.history.replaceState({}, document.title, window.location.pathname); } catch (e) {}
             
-            toast('Password updated! Please sign in with your new password.');
-            go('auth');
+           go('reset-password-success');
           } catch (e) {
             console.error('Password update error:', e);
             btn.textContent = 'Update Password'; btn.disabled = false;
