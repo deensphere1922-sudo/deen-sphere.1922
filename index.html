@@ -9119,6 +9119,17 @@ if (!response.ok || !result.success) {
                           </div>
                           <button class="btn btn-ghost btn-block" style="margin-top:14px;" id="back-2">Back to Sign In</button>
                         </div>`;
+
+              window.addEventListener('storage', function resetListener(event) {
+  if (
+    event.key === 'deen-password-reset-success' &&
+    event.newValue &&
+    document.getElementById('back-2')
+  ) {
+    window.removeEventListener('storage', resetListener);
+    go('auth');
+  }
+});
                 $('#back-2').onclick = () => go('auth');
               } catch (e) {
                 console.error('Reset email error:', e);
@@ -9251,8 +9262,17 @@ function bindResetPasswordSuccess() {
 
             _resetCode = '';
             try { window.history.replaceState({}, document.title, window.location.pathname); } catch (e) {}
+
+                
             
-           go('reset-password-success');
+          try {
+  localStorage.setItem(
+    'deen-password-reset-success',
+    Date.now().toString()
+  );
+} catch (e) {}
+
+go('reset-password-success');
           } catch (e) {
             console.error('Password update error:', e);
             btn.textContent = 'Update Password'; btn.disabled = false;
