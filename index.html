@@ -18313,9 +18313,7 @@ const toggleGuideRecording = async () => {
                   {
                     messages: history,
                     question: text,
-                   research: wantsResearch
-  ? { results: researchSources }
-  : false,
+                     research: wantsResearch,
                     hasAttachments: attachments.length > 0
                   },
                   controller.signal
