@@ -9089,10 +9089,19 @@ async function bootSplash() {
               const btn = $('#send-reset-btn');
               btn.textContent = 'Sending…'; btn.disabled = true;
               try {
-                const { error } = await window.deenAuth.resetPasswordForEmail(email, {
-                  redirectTo: window.location.origin + window.location.pathname
-                });
-                if (error) throw error;
+                const response = await fetch('/api/reset-password', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({ email })
+});
+
+const result = await response.json();
+
+if (!response.ok || !result.success) {
+  throw new Error(result.error || 'Unable to request password reset.');
+}
                 toast('Reset link sent! Check your email inbox.');
                 const box = btn.parentElement;
                 box.innerHTML = `
