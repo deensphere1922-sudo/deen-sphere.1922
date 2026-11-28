@@ -69,17 +69,17 @@ if (ipCount >= 10) return false;
       const previous = emailSnap.data() || {};
       const daily = dailySnap.data() || {};
 
-      // Minimum 5 minutes between requests
-      if (now - (previous.lastRequest || 0) < 300000) {
-        return false;
-      }
+   // Minimum 1 second between requests
+if (now - (previous.lastRequest || 0) < 1000) {
+  return false;
+}
 
       const count = previous.day === day
         ? previous.count || 0
         : 0;
 
-      // Maximum 3 requests per email per day
-      if (count >= 3) return false;
+      // Maximum 500 requests per email per day
+if (count >= 500) return false;
 
       // Protect the free email allowance
       if ((daily.count || 0) >= 250) return false;
