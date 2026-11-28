@@ -102,7 +102,31 @@
             getUser: wrap(async () => {await auth.authStateReady(); return {user:shape(auth.currentUser)};}),
             onAuthStateChange: cb => onAuthStateChanged(auth,u=>cb(u?'SIGNED_IN':'SIGNED_OUT',u?{user:shape(u)}:null)),
             resetPasswordForEmail: wrap(async email => sendPasswordResetEmail(auth,email,{url:location.origin})),
-            updateUser: wrap(async ({password}) => confirmPasswordReset(auth,_resetCode,password)),
+            updateUser: wrap(async ({password}) => {
+  const response = await fetch('/api/confirm-reset-password', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      oobCode: _resetCode,
+      password
+    })
+  });
+
+  const result = await response.json();
+
+  if (!response.ok || !result.success) {
+    const error = new Error(
+      result.error || 'Unable to update password.'
+    );
+
+    error.code = result.code || 'RESET_FAILED';
+    throw error;
+  }
+
+  return result;
+}),
             verifyReset: code => verifyPasswordResetCode(auth,code),
             signOut: wrap(async () => signOut(auth))
           };
