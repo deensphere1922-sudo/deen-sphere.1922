@@ -211,13 +211,31 @@
   html { scrollbar-gutter: stable; }
 }
 
-          body {
+          /* body {
             background: var(--bg);
             color: var(--tx);
             font-family: var(--fui);
             -webkit-font-smoothing: antialiased;
             overflow-x: hidden;
-          }
+          } */
+
+              body {
+  background: var(--bg);
+  color: var(--tx);
+  font-family: var(--fui);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection in typing fields */
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
 
         
 /* DEENSPHERE — IPHONE PWA MOBILE TAP FIX */
