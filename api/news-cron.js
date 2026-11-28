@@ -159,9 +159,22 @@ async function handleNews(profiles) {
     const data = await r.json();
     if (!Array.isArray(data?.items) || data.items.length === 0) return 0;
 
-    const latest = data.items[0];
-    const articleId = latest.id || latest.link;
-    if (!articleId) return 0;
+   const latest = data.items[0];
+const articleId = latest.id || latest.link;
+
+if (!articleId || !latest.date) return 0;
+
+// Prevent notifications for old news
+const publishedAt = new Date(latest.date).getTime();
+const age = Date.now() - publishedAt;
+const MAX_NEWS_AGE = 24 * 60 * 60 * 1000;
+
+if (!Number.isFinite(publishedAt) ||
+    age < 0 ||
+    age > MAX_NEWS_AGE) {
+  console.log('NEWS SKIPPED: Old or invalid article', latest.title);
+  return 0;
+}
 
     let count = 0;
     for (const profile of profiles) {
