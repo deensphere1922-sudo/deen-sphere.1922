@@ -1123,10 +1123,14 @@ body {
     font-weight: 600 !important;
 }
 
-/* HOVER */
+/* Disable previous-date banner hover effect */
 @media (hover: hover) {
+    .routine-past-banner:hover {
+        box-shadow: 0 20px 0 0 var(--bg) !important;
+    }
+
     .routine-past-banner button:hover {
-        opacity: 0.85;
+        opacity: 1 !important;
     }
 }
   
@@ -3310,12 +3314,12 @@ body:has(#guide-thread) #back-to-top {
 
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
   /* Cards remain fixed in place; only a restrained green border tint appears. */
-  .content .card:not(.verse-playing):hover,
-  .content .card-el:hover {
-    transform: none !important;
-    border-color: color-mix(in srgb, var(--green-l) 18%, var(--border));
-    box-shadow: none !important;
-  }
+  .content .card:not(.verse-playing):not(.routine-past-banner):hover,
+.content .card-el:hover {
+  transform: none !important;
+  border-color: color-mix(in srgb, var(--green-l) 18%, var(--border));
+  box-shadow: none !important;
+}
 
   .btn:hover,
   .btn-ghost:hover,
