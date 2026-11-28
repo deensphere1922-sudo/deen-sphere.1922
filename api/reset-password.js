@@ -210,7 +210,7 @@ tx.set(ipRef, {
         signal: AbortSignal.timeout(10000),
         body: JSON.stringify({
           sender: {
-            name: 'Deen Sphere',
+           name: 'Deen Sphere Support',
             email: process.env.BREVO_SENDER_EMAIL
           },
           to: [{ email }],
