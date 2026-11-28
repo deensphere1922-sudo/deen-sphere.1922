@@ -9321,6 +9321,10 @@ go('reset-password-success');
           } catch (e) {
             console.error('Password update error:', e);
             btn.textContent = 'Update Password'; btn.disabled = false;
+                if (e.code === 'PASSWORD_REUSED') {
+  toast('This password has already been used. Please choose a different password.');
+  return;
+}
             const m = (e && e.message) ? e.message.toLowerCase() : '';
             if (m.includes('expired')) { toast('Reset link expired. Request a new one.'); go('reset-password-expired'); }
             else if (m.includes('invalid') || m.includes('token')) { toast('Invalid reset link. Request a new one.'); go('reset-password-expired'); }
