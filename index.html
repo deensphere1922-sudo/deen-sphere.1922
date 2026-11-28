@@ -16988,12 +16988,7 @@ ISLAMIC EVIDENCE AND ACCURACY:
   </div>
   <div id="guide-composer-row" style="display:flex;align-items:center;gap:8px;width:100%;min-height:42px;">
  <input
-  id="guide-file-input"
-  type="file"
-  accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/png,image/jpeg,image/webp"
-  multiple
-  style="display:none;"
->
+<input id="guide-file-input" type="file" accept="image/png,image/jpeg,image/webp,application/pdf,.pdf" multiple style="display:none;">
   <button class="btn" id="guide-attach" type="button" aria-label="Add to message" aria-haspopup="true" aria-expanded="false" aria-controls="guide-plus-menu" title="Add to message" style="width:42px;height:42px;min-width:42px;padding:0;display:flex;align-items:center;justify-content:center;border:1px solid var(--green-l);background:var(--green-dim);color:var(--green-l);border-radius:12px;">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
   </button>
@@ -17635,22 +17630,11 @@ const prepareGuideFiles = async files => {
     }
     try {
       if (file.size > 12000000) throw new Error('Files must be 12 MB or smaller.');
-     if (file.webkitRelativePath) {
-  throw new Error('Folder uploads are not supported.');
-}
-
-const extension = file.name.split('.').pop().toLowerCase();
-
-const isPdf = extension === 'pdf' &&
-  (!file.type || file.type === 'application/pdf');
-
-const isImage =
-  ['png', 'jpg', 'jpeg', 'webp'].includes(extension) &&
-  (!file.type || ['image/png', 'image/jpeg', 'image/webp'].includes(file.type));
-
-if (!isPdf && !isImage) {
-  throw new Error('Only PDF and image files are allowed.');
-}
+    const extension = file.name.split('.').pop().toLowerCase();
+const isPdf = file.type === 'application/pdf' || extension === 'pdf';
+const isImage = ['image/png', 'image/jpeg', 'image/webp'].includes(file.type) ||
+  ['png', 'jpg', 'jpeg', 'webp'].includes(extension);
+if (!isPdf && !isImage) throw new Error('Choose a PNG, JPG, WEBP, or PDF file.');
       if (isImage) {
         if (getPendingImageCount() >= 3) throw new Error('You can send up to 3 image pages per message.');
         const preview = await imageFileToDataUrl(file);
