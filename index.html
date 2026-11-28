@@ -11717,7 +11717,16 @@ function _calculateQuranReadStats(targetDateStr) {
     }
 
     // Return a deep clone so the caller can mutate it safely
-    return finalStruct.filter(section => section[2].length > 0).map(([k, l, items]) => [k, l, items.map(([ik, il]) => [ik, il])]);
+   return finalStruct
+  .filter(section =>
+    section[2].length > 0 ||
+    String(section[0]).startsWith('sec')
+  )
+  .map(([k, l, items]) => [
+    k,
+    l,
+    items.map(([ik, il]) => [ik, il])
+  ]);
   }
 
       function _bindRoutineDelegate() {
