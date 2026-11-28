@@ -613,8 +613,15 @@ async function raceModels(candidates, invoke, clientSignal) {
   return { error: evidenceError || error || new Error('AI review timed out'), cancelled: !!clientSignal?.aborted };
 }
 function webModeEnabled(body) {
-  const r=body?.research;
-  return body?.webSearchEnabled===true || body?.webSearch===true || r===true || r?.enabled===true || r?.webSearchEnabled===true;
+  const r = body?.research;
+
+  return body?.webSearchEnabled === true ||
+    body?.webSearch === true ||
+    r === true ||
+    Array.isArray(r) ||
+    Array.isArray(r?.results) ||
+    r?.enabled === true ||
+    r?.webSearchEnabled === true;
 }
 function isIslamDefinition(question) {
   return /^(?:(?:what\s+(?:is|does)|define|explain|meaning\s+of)\s+)?(?:islam|isalm|islm|islaam|iskam)(?:\s+(?:mean|means|meaning|definition|religion))?[\s?.!]*$/i.test(question.trim());
@@ -623,7 +630,7 @@ function isDetailed(question) {
   return /\b(?:full|whole|entire|complete|detailed|in detail|explain fully|elaborate|all stories|step by step)\b/i.test(question);
 }
 const NORMAL_SEARCH_PROMPT = `NORMAL SEARCH: Answer the exact Islamic question accurately, naturally and concisely. Write one coherent paragraph of up to 10 short sentences, including when the user requests detail. Use fewer for a simple definition. No headings or lists. Avoid unnecessary headings, lists, introductions and conclusions. Use evidence internally. No reference numbers, links or Sources sections.`;
-const WEB_SEARCH_PROMPT = `WEB SEARCH: Provide a detailed, well-structured, evidence-based explanation of the exact Islamic question. Use natural paragraphs and meaningful bold subheadings only when useful. Adapt length to the topic; cover all requested aspects, not a one-sentence summary if evidence supports more. For substantial questions aim for 300–600 words, and 600–1000 words for explicitly full or detailed explanations when evidence supports that depth. Simple definitions can be shorter. Develop each requested aspect in substantial paragraphs with context and explanation, not filler. For a bare Surah name give an introduction and central themes, including brief narrative themes where central; omit unsolicited virtues and speculative historical context. Prefer 3–6 unique directly supporting Quran, authentic Hadith or named Tafsir references when available; fewer are fine. Do not force any source category. The server constructs a separate Sources section from approved evidence, with a maximum of six exact clickable links. Prefer complete relevant narrative passages with descriptive titles rather than scattered verses; for a specific teaching prefer its exact supporting verse. Never generate URLs, raw citation numbers or source headings in the answer body.`;
+const WEB_SEARCH_PROMPT = `WEB SEARCH: Provide a detailed, well-structured, evidence-based explanation of the exact Islamic question. Use natural paragraphs and meaningful bold subheadings only when useful. Adapt length to the topic; cover all requested aspects, not a one-sentence summary if evidence supports more. For substantial questions aim for 300–600 words, and 600–1000 words for explicitly full or detailed explanations when evidence supports that depth. Simple definitions can be shorter. Develop each requested aspect in substantial paragraphs with context and explanation, not filler. For a bare Surah name give an introduction and central themes, including brief narrative themes where central; omit unsolicited virtues and speculative historical context.For every genuine Islamic knowledge question, whether short, detailed, broad, specific or a contextual follow-up, identify directly relevant retrieved evidence that supports the answer. Include appropriate Quran, authentic Hadith or named Tafsir references. For complete Quranic stories, identify the relevant passage for each major narrative discussed. Prefer 3–6 unique supporting references when justified by the evidence. Never fabricate or add unrelated references. If supporting evidence cannot be retrieved, explicitly acknowledge that limitation. Do not force any source category. The server constructs a separate Sources section from approved evidence, with a maximum of six exact clickable links. Prefer complete relevant narrative passages with descriptive titles rather than scattered verses; for a specific teaching prefer its exact supporting verse. Never generate URLs, raw citation numbers or source headings in the answer body.`;
 function modeInstructions(question, webMode, chapter) {
   return [
     webMode ? WEB_SEARCH_PROMPT : NORMAL_SEARCH_PROMPT,
