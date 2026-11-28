@@ -476,6 +476,19 @@ if (broadStories || /\badam\b/i.test(question)) {
   add(2, range(30, 39));
   add(7, range(11, 27));
 }
+
+  // Prophet Muhammad ﷺ
+if (broadStories ||
+    /\b(?:muhammad|mohammed|mohammad|rasulullah|seerah|sirah)\b/i.test(question)) {
+
+  add(33, [21, 40, 45, 46]);
+  add(48, [1, 2, 3, 18, 27, 29]);
+  add(93, range(1, 11));
+  add(94, range(1, 8));
+  add(17, [1]);
+  add(21, [107]);
+  add(68, [4]);
+}
   return hints;
 }
 
