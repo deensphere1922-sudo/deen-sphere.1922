@@ -440,6 +440,42 @@ function topicVerseHints(question) {
   if (/\b(?:patien\w*|sabr)\b/i.test(question)) { add(2,[153,155,156,157]); add(39,[10]); add(13,[22,23,24]); }
   if (/\b(?:forgiv\w*|repent\w*|tawba[h]?)\b/i.test(question)) { add(39,[53,54]); add(42,[40,43]); add(3,[134,135,136]); }
   if (/\b(?:tahaj+ud|tahejjud|tahajjud|night prayer|qiyam)\b/i.test(question)) { add(17,[79]); add(73,[2,3,4,20]); }
+  // Broad Quranic story evidence
+const broadStories =
+  /\b(?:quran|quranic|qur'an|prophets)\b/i.test(question) &&
+  /\b(?:story|stories|narrative|narratives)\b/i.test(question);
+
+const range = (start, end) =>
+  Array.from({ length: end - start + 1 }, (_, i) => start + i);
+
+// Prophet Yusuf
+if (broadStories || /\b(?:yusuf|joseph)\b/i.test(question)) {
+  add(12, range(4, 101));
+}
+
+// Prophet Musa
+if (broadStories || /\b(?:musa|moses|pharaoh)\b/i.test(question)) {
+  add(28, range(3, 35));
+  add(20, range(9, 98));
+  add(26, range(10, 68));
+}
+
+// Prophet Ibrahim
+if (broadStories || /\b(?:ibrahim|abraham)\b/i.test(question)) {
+  add(21, range(51, 73));
+  add(37, range(83, 113));
+}
+
+// Prophet Nuh
+if (broadStories || /\b(?:nuh|noah)\b/i.test(question)) {
+  add(11, range(25, 49));
+}
+
+// Prophet Adam
+if (broadStories || /\badam\b/i.test(question)) {
+  add(2, range(30, 39));
+  add(7, range(11, 27));
+}
   return hints;
 }
 
