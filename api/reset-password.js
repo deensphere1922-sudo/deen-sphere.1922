@@ -64,7 +64,7 @@ const ipRef = db.collection('password_reset_limits')
       const ipSnap = await tx.get(ipRef);
 const ipCount = ipSnap.data()?.count || 0;
 
-if (ipCount >= 10) return false;
+if (ipCount >= 50) return false;
 
       const previous = emailSnap.data() || {};
       const daily = dailySnap.data() || {};
