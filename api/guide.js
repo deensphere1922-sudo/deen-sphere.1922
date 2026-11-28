@@ -537,7 +537,7 @@ async function retrieveDirectEvidence(question, sources) {
 
   const [quranResults, hadithResults] = await Promise.all([
     Promise.all(
-     [...surahNumbers].slice(0, 3).map(
+     [...surahNumbers].slice(0, 8).map(
         number => getQuranEvidence(number)
       )
     ),
